@@ -4,13 +4,19 @@ import html
 import requests
 from bs4 import BeautifulSoup
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "es-UY,es;q=0.9,en;q=0.8",
-}
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+# Crawler social: algunos sitios (ej. Mercado Libre) sólo sirven la página completa
+# (con precio) a los bots de previsualización tipo WhatsApp/Facebook.
+SOCIAL_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+
+
+def _get(url, ua):
+    return requests.get(
+        url, headers={"User-Agent": ua, "Accept-Language": "es-UY,es;q=0.9,en;q=0.8"}, timeout=15
+    )
 
 
 # ---------- helpers ----------
@@ -210,20 +216,12 @@ def _extract_area(text):
 
 # ---------- principal ----------
 
-def scrape(url):
-    """Devuelve dict con los datos de la propiedad. Nunca lanza excepción."""
+def _parse(html_text, url):
     result = {
         "url": url, "title": None, "price": None, "image": None,
         "bedrooms": None, "area": None, "location": None, "description": None, "error": None,
     }
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
-        resp.raise_for_status()
-    except Exception as e:
-        result["error"] = f"No se pudo acceder al link: {e}"
-        return result
-
-    soup = BeautifulSoup(resp.text, "lxml")
+    soup = BeautifulSoup(html_text, "lxml")
     ld = _from_jsonld(soup)
 
     result["title"] = _best_title(soup, ld)
@@ -238,7 +236,6 @@ def scrape(url):
     elif ld.get("price"):
         result["price"] = ld["price"]
 
-    # texto para fallbacks
     blob = " ".join(filter(None, [result["title"], result["description"],
                                   soup.get_text(" ", strip=True)[:6000]]))
     blob = html.unescape(blob)
@@ -253,5 +250,38 @@ def scrape(url):
         result["title"] = html.unescape(result["title"])[:200]
     if result["description"]:
         result["description"] = html.unescape(result["description"])[:400]
+    return result
+
+
+def _merge(a, b):
+    """Completa los campos vacíos de 'a' con los de 'b'."""
+    for k in ("title", "price", "image", "bedrooms", "area", "location", "description"):
+        if not a.get(k) and b.get(k):
+            a[k] = b[k]
+    return a
+
+
+def scrape(url):
+    """Devuelve dict con los datos de la propiedad. Nunca lanza excepción.
+    Estrategia: navegador normal y, si falta el precio, reintento con UA social
+    (necesario para Mercado Libre, que a los bots les muestra la página completa)."""
+    try:
+        resp = _get(url, BROWSER_UA)
+        resp.raise_for_status()
+    except Exception as e:
+        return {"url": url, "title": None, "price": None, "image": None, "bedrooms": None,
+                "area": None, "location": None, "description": None,
+                "error": f"No se pudo acceder al link: {e}"}
+
+    result = _parse(resp.text, url)
+
+    # Si no salió el precio, reintento con el crawler social (golazo para Mercado Libre).
+    if not result["price"]:
+        try:
+            resp2 = _get(url, SOCIAL_UA)
+            resp2.raise_for_status()
+            result = _merge(result, _parse(resp2.text, url))
+        except Exception:
+            pass
 
     return result
