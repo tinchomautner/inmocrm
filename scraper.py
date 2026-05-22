@@ -64,6 +64,39 @@ def _from_jsonld(soup):
     return out
 
 
+def _is_junk_title(t):
+    """Detecta títulos inservibles: vacíos, muy cortos, o placeholders tipo 'Ref: ,'."""
+    if not t:
+        return True
+    s = t.strip()
+    if len(s) < 5:
+        return True
+    if re.fullmatch(r"(?:ref\.?\s*:?\s*[,;.\-/]*\s*)+", s, re.IGNORECASE):
+        return True
+    return False
+
+
+def _best_title(soup):
+    # h1 más largo de los primeros (evita un h1 chico de logo/nav)
+    h1 = None
+    h1s = [h.get_text(" ", strip=True) for h in soup.find_all("h1", limit=5)]
+    h1s = [h for h in h1s if h]
+    if h1s:
+        h1 = max(h1s, key=len)
+    candidates = [
+        _meta(soup, "og:title", "twitter:title"),
+        h1,
+        (soup.title.string.strip() if soup.title and soup.title.string else None),
+    ]
+    for c in candidates:
+        if not _is_junk_title(c):
+            return c
+    for c in candidates:  # último recurso: lo que haya
+        if c and c.strip():
+            return c
+    return None
+
+
 def _clean_num(text):
     return re.sub(r"[^\d]", "", text or "")
 
@@ -111,9 +144,7 @@ def scrape(url):
 
     soup = BeautifulSoup(resp.text, "lxml")
 
-    result["title"] = _meta(soup, "og:title", "twitter:title") or (
-        soup.title.string.strip() if soup.title and soup.title.string else None
-    )
+    result["title"] = _best_title(soup)
     result["image"] = _meta(soup, "og:image", "twitter:image")
     result["description"] = _meta(soup, "og:description", "description", "twitter:description")
     result["price"] = _meta(soup, "product:price:amount", "og:price:amount")
