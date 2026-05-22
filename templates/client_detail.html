@@ -12,7 +12,9 @@
 <body>
 <div class="topbar">
   <div class="inner">
-    <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    <a href="{{ url_for('admin_home') }}" aria-label="Ir al listado de clientes">
+      <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    </a>
     <div style="display:flex; align-items:center; gap:16px;">
       <span class="tag">Panel del corredor</span>
       <a class="tag" href="{{ url_for('logout') }}" style="color:var(--green-deep);">Salir</a>
