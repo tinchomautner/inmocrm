@@ -41,7 +41,7 @@
     </div>
   </div>
 
-  <div class="stats">
+  <div class="stats stats-admin">
     <div class="stat"><div><div class="n">{{ stats.total }}</div><div class="l">Propiedades</div></div></div>
     <div class="stat"><span class="dot green"></span><div><div class="n">{{ stats.interesa }}</div><div class="l">Le interesa</div>{% if stats.visitadas %}<div class="l" style="text-transform:none; color:var(--green-deep); margin-top:2px;">✓ {{ stats.visitadas }} visitada{% if stats.visitadas != 1 %}s{% endif %}</div>{% endif %}</div></div>
     <div class="stat"><span class="dot no"></span><div><div class="n">{{ stats.no_interesa }}</div><div class="l">No interesa</div></div></div>

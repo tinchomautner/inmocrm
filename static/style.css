@@ -85,7 +85,7 @@ label { display: block; font-size: 11px; letter-spacing: .1em; text-transform: u
 /* stats */
 .stats { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
 .stat { flex: 1; min-width: 130px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
-.stat .n { font-family: 'Cormorant Garamond', serif; font-size: 32px; line-height: 1; font-weight: 600; }
+.stat .n { font-family: 'Jost', sans-serif; font-size: 28px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
 .stat .l { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--stone); }
 .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
 .dot.green { background: var(--green); }
@@ -215,11 +215,12 @@ img { max-width: 100%; height: auto; }
   .prop .resp { grid-column: 1 / -1; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .prop .resp form { margin-top: 0 !important; }
 
-  /* stats: Propiedades sola arriba, las otras 3 juntas abajo */
+  /* stats: en el panel admin -> Propiedades sola arriba, las otras 3 juntas abajo.
+     En el portal del cliente (.stats sin .stats-admin) -> 3 columnas iguales. */
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .stats .stat:first-child { grid-column: 1 / -1; }
+  .stats-admin .stat:first-child { grid-column: 1 / -1; }
   .stat { min-width: 0; padding: 12px 10px; gap: 8px; }
-  .stat .n { font-size: 23px; }
+  .stat .n { font-size: 22px; }
   .stat .l { font-size: 9.5px; letter-spacing: .05em; line-height: 1.2; }
 
   /* portal */
