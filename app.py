@@ -5,7 +5,7 @@ import unicodedata
 from flask import (
     Flask, render_template, request, redirect, url_for, jsonify, abort
 )
-from db import get_db, init_db
+from db import get_db, init_db, now_str
 from scraper import scrape
 
 app = Flask(__name__)
@@ -60,9 +60,11 @@ def create_client():
         return redirect(url_for("admin_home"))
     conn = get_db()
     slug = unique_slug(conn, slugify(name))
-    cur = conn.execute("INSERT INTO clients (name, slug) VALUES (?, ?)", (name, slug))
+    cid = conn.insert_id(
+        "INSERT INTO clients (name, slug, created_at) VALUES (?, ?, ?)",
+        (name, slug, now_str()),
+    )
     conn.commit()
-    cid = cur.lastrowid
     conn.close()
     return redirect(url_for("client_detail", client_id=cid))
 
@@ -97,18 +99,18 @@ def add_property(client_id):
     urls_raw = request.form.get("urls") or ""
     urls = [u.strip() for u in re.split(r"[\s\n]+", urls_raw) if u.strip().startswith("http")]
     maxpos = conn.execute(
-        "SELECT COALESCE(MAX(position), 0) FROM properties WHERE client_id = ?", (client_id,)
-    ).fetchone()[0]
+        "SELECT COALESCE(MAX(position), 0) AS m FROM properties WHERE client_id = ?", (client_id,)
+    ).fetchone()["m"]
     pos = maxpos
     for u in urls:
         pos += 1
         data = scrape(u)
         conn.execute(
             """INSERT INTO properties
-               (client_id, url, title, price, image, bedrooms, area, location, description, position)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (client_id, url, title, price, image, bedrooms, area, location, description, position, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (client_id, u, data["title"], data["price"], data["image"], data["bedrooms"],
-             data["area"], data["location"], data["description"], pos),
+             data["area"], data["location"], data["description"], pos, now_str()),
         )
     conn.commit()
     conn.close()
@@ -195,8 +197,8 @@ def respond(prop_id):
         conn.close()
         return jsonify({"ok": False}), 404
     conn.execute(
-        "UPDATE properties SET status=?, comment=?, responded_at=datetime('now','localtime') WHERE id=?",
-        (status, comment, prop_id),
+        "UPDATE properties SET status=?, comment=?, responded_at=? WHERE id=?",
+        (status, comment, now_str(), prop_id),
     )
     conn.commit()
     conn.close()
