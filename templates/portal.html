@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Selección de propiedades · {{ client.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    <span class="tag">Selección privada</span>
+  </div>
+</div>
+
+<section class="wrap" style="padding-bottom:0;">
+  <div class="intro">
+    <span class="eyebrow">Propiedades seleccionadas para usted</span>
+    <h1>Hola {{ client.name }}</h1>
+    <p class="msg">Preparamos esta selección pensando en usted. En cada propiedad indique si le interesa o prefiere descartarla, y déjenos sus comentarios. Recibimos sus preferencias al instante.</p>
+  </div>
+
+  {% if props %}
+  <div class="stats">
+    <div class="stat"><span class="dot green"></span><div><div class="n" id="cInteresa">0</div><div class="l">Me interesa</div></div></div>
+    <div class="stat"><span class="dot no"></span><div><div class="n" id="cNo">0</div><div class="l">Descartadas</div></div></div>
+    <div class="stat"><span class="dot pend"></span><div><div class="n" id="cPend">0</div><div class="l">Pendientes</div></div></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+  {% else %}
+  <div class="done"><div class="big">📭</div><p class="muted">Todavía no hay propiedades para mostrar.</p></div>
+  {% endif %}
+</section>
+
+{% if props %}
+<div class="actionbar">
+  <div class="inner">
+    <div class="progress">
+      <span id="progTxt">0 de {{ props|length }} respondidas</span>
+      <span class="pbar"><i id="pbar"></i></span>
+      <span class="muted small" style="color:rgba(255,255,255,.55)">Se guarda solo ✓</span>
+    </div>
+    <button class="btn" id="finishBtn">Finalizar mi selección</button>
+  </div>
+</div>
+{% endif %}
+
+<footer>
+  <div class="fg">
+    <div>
+      <img class="fl" src="{{ url_for('static', filename='img/etxe_logo_white.png') }}" alt="Etxe Bienes Raíces">
+      <p style="margin-top:18px;max-width:380px">Empresa joven y dinámica del sector Bienes Raíces en Montevideo, Uruguay. Buscamos la excelencia profesional para brindarle al cliente la mejor atención.</p>
+    </div>
+    <div>
+      <h4>Su asesor</h4>
+      <ul>
+        <li><a href="mailto:info@etxe.com.uy">info@etxe.com.uy</a></li>
+        <li>Av. Arocena 1996, Montevideo</li>
+      </ul>
+      <div style="display:inline-flex;align-items:center;gap:10px;margin-top:14px;border:1px solid rgba(255,255,255,.18);padding:9px 13px;border-radius:4px">
+        <img src="{{ url_for('static', filename='img/logo-uruguay.svg') }}" alt="Uruguay" style="height:26px">
+        <span style="font-size:11px;color:rgba(255,255,255,.7)">ROT MINTURD #1692</span>
+      </div>
+    </div>
+  </div>
+  <div class="fbot">
+    <span>© 2026 Etxe Bienes Raíces</span>
+    <span>Selección privada de propiedades</span>
+  </div>
+</footer>
+
+<div class="lb" id="lb"><span class="x" id="lbx">&times;</span><img id="lbimg"></div>
+
+<script>
+const PROPS = {{ props_json | safe }};
+const cards = document.getElementById('cards');
+
+function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render(p){
+  const specs = [];
+  if (p.bedrooms) specs.push(p.bedrooms + ' dorm');
+  if (p.area) specs.push(p.area);
+  if (p.location) specs.push(p.location);
+  const gal = p.image
+    ? `<img class="main" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onclick="openLB('${esc(p.image)}')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerText:'Sin foto disponible'}))">`
+    : `<div class="ph">Sin foto disponible</div>`;
+  const el = document.createElement('div');
+  el.className = 'pcard' + (p.status !== 'pendiente' ? ' r-' + p.status : '');
+  el.id = 'card-' + p.id;
+  el.innerHTML = `
+    <div class="gal">
+      ${gal}
+      ${p.price ? `<span class="badge-price">${esc(p.price)}</span>` : ''}
+    </div>
+    <div class="info">
+      ${p.location ? `<span class="loc">${esc(p.location)}</span>` : ''}
+      <h3>${esc(p.title) || 'Propiedad'}</h3>
+      ${p.price ? `<div class="price">${esc(p.price)}</div>` : ''}
+      ${specs.length ? `<div class="specs">${specs.map(s=>`<span>${esc(s)}</span>`).join('')}</div>` : ''}
+      ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
+      <a class="ficha" href="${esc(p.url)}" target="_blank">Ver ficha completa &#8599;</a>
+      <div class="react">
+        <div class="q">¿Qué le parece esta propiedad?</div>
+        <div class="rbtns" data-id="${p.id}">
+          <button class="rbtn ${p.status==='interesa'?'on':''}" data-r="interesa">🟢 Me interesa</button>
+          <button class="rbtn ${p.status==='no_interesa'?'on':''}" data-r="no_interesa">⚪ No me interesa</button>
+        </div>
+        <textarea data-id="${p.id}" placeholder="Comentarios (opcional): orientación, presupuesto, dudas...">${esc(p.comment)}</textarea>
+        <div class="saved" id="saved-${p.id}">✓ Guardado</div>
+      </div>
+    </div>`;
+  cards.appendChild(el);
+}
+
+function byId(id){ return PROPS.find(p=>p.id===id); }
+
+function saveProp(p, flash){
+  fetch(`/api/propiedad/${p.id}/responder`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status:p.status, comment:p.comment||''})
+  }).then(()=>{ if(flash){ const s=document.getElementById('saved-'+p.id); if(s){s.classList.add('show'); clearTimeout(s._t); s._t=setTimeout(()=>s.classList.remove('show'),1500);} } });
+}
+
+cards.addEventListener('click', e=>{
+  const b = e.target.closest('.rbtn'); if(!b) return;
+  const id = +b.parentElement.dataset.id, r = b.dataset.r;
+  const p = byId(id);
+  p.status = (p.status === r) ? 'pendiente' : r;          // toggle off
+  b.parentElement.querySelectorAll('.rbtn').forEach(x=>x.classList.toggle('on', x.dataset.r===p.status));
+  const card = document.getElementById('card-'+id);
+  card.className = 'pcard' + (p.status!=='pendiente' ? ' r-'+p.status : '');
+  saveProp(p, true);
+  updateStats();
+});
+
+let timers = {};
+cards.addEventListener('input', e=>{
+  if(e.target.tagName !== 'TEXTAREA') return;
+  const id = +e.target.dataset.id, p = byId(id);
+  p.comment = e.target.value;
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(()=>saveProp(p, true), 700);
+});
+
+function updateStats(){
+  let i=0,n=0,pend=0;
+  PROPS.forEach(p=>{ if(p.status==='interesa')i++; else if(p.status==='no_interesa')n++; else pend++; });
+  document.getElementById('cInteresa').textContent = i;
+  document.getElementById('cNo').textContent = n;
+  document.getElementById('cPend').textContent = pend;
+  const done = PROPS.length - pend;
+  document.getElementById('progTxt').textContent = `${done} de ${PROPS.length} respondidas`;
+  document.getElementById('pbar').style.width = (PROPS.length ? Math.round(done/PROPS.length*100) : 0) + '%';
+}
+
+// lightbox
+const lb = document.getElementById('lb'), lbimg = document.getElementById('lbimg');
+function openLB(src){ lbimg.src = src; lb.classList.add('open'); }
+document.getElementById('lbx').onclick = ()=>lb.classList.remove('open');
+lb.onclick = e=>{ if(e.target===lb) lb.classList.remove('open'); };
+addEventListener('keydown', e=>{ if(e.key==='Escape') lb.classList.remove('open'); });
+
+// finalizar -> abre WhatsApp con mensaje al asesor
+const ADVISOR_NAME = {{ advisor_name | tojson }};
+const ADVISOR_WPP = {{ advisor_wpp | tojson }};
+const CLIENT_NAME = {{ client.name | tojson }};
+const finishBtn = document.getElementById('finishBtn');
+if (finishBtn) finishBtn.addEventListener('click', ()=>{
+  const i = PROPS.filter(p=>p.status==='interesa').length;
+  const pend = PROPS.filter(p=>p.status==='pendiente').length;
+  if (PROPS.length && pend === PROPS.length){
+    alert('Marcá al menos una propiedad antes de finalizar.');
+    return;
+  }
+  let msg = `Hola ${ADVISOR_NAME}! Soy ${CLIENT_NAME}, ya terminé mi selección de propiedades.`;
+  if (i === 1) msg += ` Me interesa 1 propiedad.`;
+  else if (i > 1) msg += ` Me interesan ${i} propiedades.`;
+  const url = `https://wa.me/${ADVISOR_WPP}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+});
+
+if (PROPS.length){ PROPS.forEach(render); updateStats(); }
+</script>
+</body>
+</html>

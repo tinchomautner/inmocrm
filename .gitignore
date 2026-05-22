@@ -1,0 +1,18 @@
+# Base de datos local (se crea sola al correr la app)
+inmocrm.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Editor / sistema
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

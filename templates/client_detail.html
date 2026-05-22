@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ client.name }} · Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="topbar">
+  <div class="inner">
+    <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    <span class="tag">Panel del corredor</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="intro" style="padding:36px 0 18px; display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+    <div>
+      <a href="{{ url_for('admin_home') }}" class="muted small">← Todos los clientes</a>
+      <h1 style="margin-top:6px;">{{ client.name }}</h1>
+    </div>
+    <form method="post" action="{{ url_for('delete_client', client_id=client.id) }}"
+          onsubmit="return confirm('¿Eliminar este cliente y todas sus propiedades?')">
+      <button class="btn danger" type="submit">Eliminar cliente</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Link para enviarle al cliente</h2>
+    <div class="row wrap" style="align-items:center;">
+      <div class="link-share" id="shareLink" style="flex:1; min-width:240px;">{{ request.host_url }}p/{{ client.slug }}</div>
+      <button class="btn secondary" type="button" onclick="copyLink()">Copiar</button>
+      <a class="btn secondary" href="{{ url_for('portal', slug=client.slug) }}" target="_blank">Ver portal</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div><div class="n">{{ stats.total }}</div><div class="l">Propiedades</div></div></div>
+    <div class="stat"><span class="dot green"></span><div><div class="n">{{ stats.interesa }}</div><div class="l">Le interesa</div></div></div>
+    <div class="stat"><span class="dot no"></span><div><div class="n">{{ stats.no_interesa }}</div><div class="l">No interesa</div></div></div>
+    <div class="stat"><span class="dot pend"></span><div><div class="n">{{ stats.pendiente }}</div><div class="l">Sin responder</div></div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Agregar propiedades</h2>
+    <form method="post" action="{{ url_for('add_property', client_id=client.id) }}">
+      <textarea name="urls" placeholder="Pegá uno o varios links (uno por línea).&#10;https://www.infocasas.com.uy/...&#10;https://casa.mercadolibre.com.uy/..."></textarea>
+      <div class="muted small" style="margin:6px 0 14px;">El sistema intenta extraer foto, precio, m² y dormitorios automáticamente.</div>
+      <button class="btn" type="submit">Agregar y extraer datos</button>
+    </form>
+  </div>
+
+  <h2>Propiedades ({{ props|length }})</h2>
+  {% if not props %}<p class="muted">Sin propiedades cargadas todavía.</p>{% endif %}
+  {% for p in props %}
+    <div class="prop">
+      {% if p.image %}<img class="thumb" src="{{ p.image }}" alt="" referrerpolicy="no-referrer">
+      {% else %}<div class="thumb"></div>{% endif %}
+      <div>
+        <div class="ttl">{{ p.title or 'Sin título' }}</div>
+        <div class="meta">
+          {% if p.price %}{{ p.price }} · {% endif %}
+          {% if p.bedrooms %}{{ p.bedrooms }} dorm · {% endif %}
+          {% if p.area %}{{ p.area }} · {% endif %}
+          {% if p.location %}{{ p.location }}{% endif %}
+        </div>
+        <div class="meta"><a href="{{ p.url }}" target="_blank" style="color:var(--green-deep)">Ver aviso original ↗</a></div>
+        {% if p.comment %}<div class="comment">💬 "{{ p.comment }}"</div>{% endif %}
+
+        <details class="edit">
+          <summary>Editar datos</summary>
+          <form method="post" action="{{ url_for('edit_property', prop_id=p.id) }}" style="margin-top:10px;">
+            <label>Título</label><input name="title" value="{{ p.title or '' }}">
+            <div class="grid2">
+              <div><label>Precio</label><input name="price" value="{{ p.price or '' }}"></div>
+              <div><label>Dormitorios</label><input name="bedrooms" value="{{ p.bedrooms or '' }}"></div>
+              <div><label>Superficie</label><input name="area" value="{{ p.area or '' }}"></div>
+              <div><label>Ubicación</label><input name="location" value="{{ p.location or '' }}"></div>
+            </div>
+            <label>URL imagen</label><input name="image" value="{{ p.image or '' }}">
+            <label>Descripción</label><textarea name="description">{{ p.description or '' }}</textarea>
+            <button class="btn secondary" type="submit" style="margin-top:10px;">Guardar cambios</button>
+          </form>
+        </details>
+      </div>
+      <div class="resp">
+        <span class="status-pill s-{{ p.status }}">
+          {% if p.status == 'interesa' %}Le interesa
+          {% elif p.status == 'no_interesa' %}No interesa
+          {% else %}Pendiente{% endif %}
+        </span>
+        <form method="post" action="{{ url_for('delete_property', prop_id=p.id) }}" style="margin-top:10px;">
+          <button class="btn danger" type="submit">Quitar</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+function copyLink() {
+  const t = document.getElementById('shareLink').innerText;
+  navigator.clipboard.writeText(t).then(() => alert('Link copiado:\n' + t));
+}
+</script>
+</body>
+</html>

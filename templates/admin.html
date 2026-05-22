@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del corredor · Etxe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="topbar">
+  <div class="inner">
+    <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    <span class="tag">Panel del corredor</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="intro" style="padding:40px 0 18px;">
+    <span class="eyebrow">Administración</span>
+    <h1>Clientes y búsquedas</h1>
+  </div>
+
+  <div class="panel">
+    <h2>Nuevo cliente</h2>
+    <form method="post" action="{{ url_for('create_client') }}" class="row wrap">
+      <input type="text" name="name" placeholder="Nombre del cliente (ej: Juan Pérez)" required style="flex:1; min-width:240px;">
+      <button class="btn" type="submit">Crear cliente</button>
+    </form>
+  </div>
+
+  <h2>Clientes ({{ clients|length }})</h2>
+  {% if not clients %}
+    <p class="muted">Todavía no creaste ningún cliente.</p>
+  {% endif %}
+  {% for c in clients %}
+    <a class="client-card" href="{{ url_for('client_detail', client_id=c.id) }}">
+      <div>
+        <div class="name">{{ c.name }}</div>
+        <div class="muted small">/p/{{ c.slug }} · creado {{ c.created_at }}</div>
+      </div>
+      <div class="badges">
+        <span class="badge">{{ c.total or 0 }} props</span>
+        <span class="badge green">{{ c.interesa or 0 }} interesa</span>
+        <span class="badge">{{ c.respondidas or 0 }}/{{ c.total or 0 }} respondidas</span>
+      </div>
+    </a>
+  {% endfor %}
+</div>
+</body>
+</html>
