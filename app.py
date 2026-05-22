@@ -1,3 +1,4 @@
+import os
 import re
 import json
 import unicodedata
@@ -8,6 +9,9 @@ from db import get_db, init_db
 from scraper import scrape
 
 app = Flask(__name__)
+
+# Crea las tablas al arrancar (sirve también cuando lo levanta gunicorn en el host)
+init_db()
 
 ADVISOR_NAME = "Elianne"
 ADVISOR_WHATSAPP = "59892364337"  # +598 92 364 337
@@ -200,5 +204,6 @@ def respond(prop_id):
 
 
 if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)
