@@ -178,3 +178,52 @@ footer a:hover { color: var(--green); }
 /* done screen */
 .done { text-align: center; padding: 60px 20px; }
 .done .big { font-size: 3rem; }
+
+/* ============ Responsive (mobile / tablet) ============ */
+img { max-width: 100%; height: auto; }
+
+@media (max-width: 760px) {
+  .wrap { padding: 18px 16px 96px; }
+  .topbar .inner { padding: 0 16px; height: 56px; }
+  .topbar img { height: 24px; }
+  .topbar .tag { font-size: 9.5px; letter-spacing: .12em; }
+
+  h1 { font-size: 30px; }
+  h2 { font-size: 21px; }
+  .panel { padding: 16px; }
+  .intro { padding: 26px 0 12px !important; }
+  .intro .msg { font-size: 16px; }
+  .grid2 { grid-template-columns: 1fr; }
+
+  /* admin: filas de propiedad apiladas y prolijas */
+  .prop { grid-template-columns: 78px 1fr; gap: 12px; }
+  .prop img.thumb, .prop .thumb { width: 78px; height: 62px; }
+  .prop .ttl { font-size: 17px; }
+  .prop .resp { grid-column: 1 / -1; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .prop .resp form { margin-top: 0 !important; }
+
+  /* stats: 2 por fila (grid determinístico) */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; }
+  .stat { min-width: 0; padding: 12px 14px; }
+  .stat .n { font-size: 26px; }
+
+  /* portal */
+  .info { padding: 20px 18px; }
+  .info h3 { font-size: 22px; }
+  .info .price { font-size: 24px; }
+  .gal, .gal .main, .gal .ph { min-height: 210px; }
+  .gal .main { max-height: 300px; }
+
+  /* footer + barra inferior */
+  footer { padding: 40px 0 24px; }
+  footer .fg { padding: 0 16px; gap: 26px; }
+  .fbot { padding: 18px 16px 0; flex-direction: column; }
+  .actionbar .inner { padding: 11px 16px; gap: 10px; }
+  .progress { font-size: 12.5px; gap: 10px; }
+  .pbar { width: 100px; }
+  #finishBtn { flex: 1 1 auto; justify-content: center; }
+}
+
+@media (max-width: 400px) {
+  .topbar .tag { display: none; }
+}
