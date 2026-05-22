@@ -40,25 +40,24 @@ En `app.py`:
 - `ADVISOR_NAME` / `ADVISOR_WHATSAPP` — nombre y WhatsApp del asesor al que el cliente
   le avisa cuando finaliza su selección.
 
+## Variables de entorno (en el host)
+
+- `DATABASE_URL` — conexión Postgres (ej. Neon) para que los datos persistan. Si no se define,
+  usa SQLite local.
+- `ADMIN_PASSWORD` — contraseña del panel del corredor. **Definirla sí o sí en producción**
+  (el default `etxe2026` es público en el repo).
+- `SECRET_KEY` — texto aleatorio largo para firmar las sesiones de login.
+
 ## Publicarlo online (para que los clientes abran el link)
 
-GitHub Pages **no** sirve para esta app (Pages solo aloja archivos estáticos; esto necesita
-Python corriendo). Hay que usar un host de Python. La forma más simple:
-
-### Render (gratis)
-
-1. Crear cuenta en https://render.com y conectarla con tu GitHub.
-2. **New → Blueprint** y elegir este repo. Render lee `render.yaml` y configura todo solo.
-   (Alternativa: **New → Web Service**, build `pip install -r requirements.txt`,
-   start `gunicorn app:app --bind 0.0.0.0:$PORT`.)
-3. Te queda una URL pública tipo `https://inmocrm.onrender.com`. Ese es el panel; el link
-   del cliente es `https://inmocrm.onrender.com/p/<cliente>`.
-
-> Nota: en el plan free de Render el disco es efímero — si redeployás, la base `inmocrm.db`
-> se reinicia. Para datos permanentes, agregar un disco persistente (de pago) o usar
-> PythonAnywhere (free, almacenamiento persistente).
+GitHub Pages **no** sirve (solo archivos estáticos; esto necesita Python). Se hostea en
+**Render** (gratis) con base **Neon** (Postgres gratis y persistente), y un ping cada 10 min
+desde **cron-job.org** para que no se duerma. Ver la guía paso a paso aparte.
 
 ## Notas
 
-- Mercado Libre y etxe cargan el precio por JavaScript; en esos casos el precio queda vacío
-  y se completa a mano con "Editar datos" en el panel. El resto (foto, título, dormitorios) se extrae solo.
+- El precio se extrae de datos estructurados (JSON-LD, incluidos rangos de proyectos) y del
+  texto, con doble User-Agent (incluye Mercado Libre). **etxe** carga el precio por JavaScript:
+  ahí se completa a mano con "Editar datos".
+- Botón **↻ Actualizar** (por propiedad o por cliente): re-extrae y rellena datos faltantes
+  sin pisar lo editado a mano.

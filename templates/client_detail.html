@@ -13,7 +13,10 @@
 <div class="topbar">
   <div class="inner">
     <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
-    <span class="tag">Panel del corredor</span>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <span class="tag">Panel del corredor</span>
+      <a class="tag" href="{{ url_for('logout') }}" style="color:var(--green-deep);">Salir</a>
+    </div>
   </div>
 </div>
 
@@ -54,7 +57,16 @@
     </form>
   </div>
 
-  <h2>Propiedades ({{ props|length }})</h2>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <h2 style="margin:0;">Propiedades ({{ props|length }})</h2>
+    {% if props %}
+    <form method="post" action="{{ url_for('refresh_client', client_id=client.id) }}"
+          onsubmit="this.querySelector('button').innerText='Actualizando…'; this.querySelector('button').disabled=true;">
+      <button class="btn secondary" type="submit" title="Re-extrae datos faltantes (ej. precios) de todas">↻ Actualizar precios/datos</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="muted small" style="margin:6px 0 14px;">Rellena los datos vacíos (útil para propiedades cargadas antes). No pisa lo que editaste a mano.</p>
   {% if not props %}<p class="muted">Sin propiedades cargadas todavía.</p>{% endif %}
   {% for p in props %}
     <div class="prop">
@@ -93,7 +105,10 @@
           {% elif p.status == 'no_interesa' %}No interesa
           {% else %}Pendiente{% endif %}
         </span>
-        <form method="post" action="{{ url_for('delete_property', prop_id=p.id) }}" style="margin-top:10px;">
+        <form method="post" action="{{ url_for('refresh_property', prop_id=p.id) }}" style="margin-top:10px;">
+          <button class="btn secondary" type="submit" style="padding:6px 10px; font-size:11px;">↻ Actualizar</button>
+        </form>
+        <form method="post" action="{{ url_for('delete_property', prop_id=p.id) }}" style="margin-top:6px;">
           <button class="btn danger" type="submit">Quitar</button>
         </form>
       </div>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar · Panel del corredor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="topbar">
+  <div class="inner">
+    <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    <span class="tag">Panel del corredor</span>
+  </div>
+</div>
+
+<div class="wrap" style="max-width:420px;">
+  <div class="intro" style="padding:40px 0 18px; text-align:center;">
+    <span class="eyebrow">Acceso privado</span>
+    <h1 style="font-size:34px;">Ingresar</h1>
+  </div>
+  <div class="panel">
+    <form method="post">
+      <label>Contraseña</label>
+      <input type="password" name="password" autofocus required placeholder="••••••••">
+      {% if error %}<div style="color:var(--love); font-size:.9rem; margin-top:10px;">{{ error }}</div>{% endif %}
+      <button class="btn" type="submit" style="width:100%; justify-content:center; margin-top:16px;">Entrar</button>
+    </form>
+  </div>
+  <p class="muted small" style="text-align:center;">Sólo para el equipo de Etxe.</p>
+</div>
+</body>
+</html>

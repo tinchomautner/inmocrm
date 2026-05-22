@@ -2,19 +2,52 @@ import os
 import re
 import json
 import unicodedata
+from functools import wraps
 from flask import (
-    Flask, render_template, request, redirect, url_for, jsonify, abort
+    Flask, render_template, request, redirect, url_for, jsonify, abort, session
 )
 from db import get_db, init_db, now_str
 from scraper import scrape
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-cambiar-en-produccion")
 
 # Crea las tablas al arrancar (sirve también cuando lo levanta gunicorn en el host)
 init_db()
 
 ADVISOR_NAME = "Elianne"
 ADVISOR_WHATSAPP = "59892364337"  # +598 92 364 337
+
+# Contraseña del panel del corredor. En el host se configura con la variable ADMIN_PASSWORD.
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "etxe2026")
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin"):
+            return redirect(url_for("login", next=request.path))
+        return view(*args, **kwargs)
+    return wrapper
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        if (request.form.get("password") or "") == ADMIN_PASSWORD:
+            session["admin"] = True
+            session.permanent = True
+            dest = request.args.get("next") or url_for("admin_home")
+            return redirect(dest)
+        error = "Contraseña incorrecta."
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 def slugify(text):
@@ -35,6 +68,7 @@ def unique_slug(conn, base):
 # ---------- Admin ----------
 
 @app.route("/")
+@login_required
 def admin_home():
     conn = get_db()
     clients = conn.execute(
@@ -54,6 +88,7 @@ def admin_home():
 
 
 @app.route("/clientes", methods=["POST"])
+@login_required
 def create_client():
     name = (request.form.get("name") or "").strip()
     if not name:
@@ -76,6 +111,7 @@ def health():
 
 
 @app.route("/admin/cliente/<int:client_id>")
+@login_required
 def client_detail(client_id):
     conn = get_db()
     client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -96,6 +132,7 @@ def client_detail(client_id):
 
 
 @app.route("/admin/cliente/<int:client_id>/propiedades", methods=["POST"])
+@login_required
 def add_property(client_id):
     conn = get_db()
     client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -124,6 +161,7 @@ def add_property(client_id):
 
 
 @app.route("/admin/propiedad/<int:prop_id>/editar", methods=["POST"])
+@login_required
 def edit_property(prop_id):
     conn = get_db()
     p = conn.execute("SELECT client_id FROM properties WHERE id = ?", (prop_id,)).fetchone()
@@ -144,6 +182,7 @@ def edit_property(prop_id):
 
 
 @app.route("/admin/propiedad/<int:prop_id>/eliminar", methods=["POST"])
+@login_required
 def delete_property(prop_id):
     conn = get_db()
     p = conn.execute("SELECT client_id FROM properties WHERE id = ?", (prop_id,)).fetchone()
@@ -157,7 +196,46 @@ def delete_property(prop_id):
     return redirect(url_for("client_detail", client_id=cid))
 
 
+def _refresh_property(conn, prop_id):
+    """Re-extrae el aviso y rellena SOLO los campos que están vacíos (no pisa lo editado a mano)."""
+    p = conn.execute("SELECT * FROM properties WHERE id = ?", (prop_id,)).fetchone()
+    if not p:
+        return None
+    data = scrape(p["url"])
+    fields = ("title", "price", "image", "bedrooms", "area", "location", "description")
+    updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
+    if updates:
+        sets = ", ".join(f"{k}=?" for k in updates)
+        conn.execute(f"UPDATE properties SET {sets} WHERE id=?", (*updates.values(), prop_id))
+    return p["client_id"]
+
+
+@app.route("/admin/propiedad/<int:prop_id>/actualizar", methods=["POST"])
+@login_required
+def refresh_property(prop_id):
+    conn = get_db()
+    cid = _refresh_property(conn, prop_id)
+    conn.commit()
+    conn.close()
+    if cid is None:
+        abort(404)
+    return redirect(url_for("client_detail", client_id=cid))
+
+
+@app.route("/admin/cliente/<int:client_id>/actualizar", methods=["POST"])
+@login_required
+def refresh_client(client_id):
+    conn = get_db()
+    rows = conn.execute("SELECT id FROM properties WHERE client_id = ?", (client_id,)).fetchall()
+    for r in rows:
+        _refresh_property(conn, r["id"])
+    conn.commit()
+    conn.close()
+    return redirect(url_for("client_detail", client_id=client_id))
+
+
 @app.route("/admin/cliente/<int:client_id>/eliminar", methods=["POST"])
+@login_required
 def delete_client(client_id):
     conn = get_db()
     conn.execute("DELETE FROM clients WHERE id = ?", (client_id,))
