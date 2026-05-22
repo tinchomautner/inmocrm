@@ -198,13 +198,19 @@ def delete_property(prop_id):
 
 
 def _refresh_property(conn, prop_id):
-    """Re-extrae el aviso y rellena SOLO los campos que están vacíos (no pisa lo editado a mano)."""
+    """Re-extrae el aviso. Rellena los campos vacíos y, además, reemplaza
+    título/descripción si están largos (auto-extraídos sin recortar)."""
     p = conn.execute("SELECT * FROM properties WHERE id = ?", (prop_id,)).fetchone()
     if not p:
         return None
     data = scrape(p["url"])
     fields = ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses")
     updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
+    # Reemplaza títulos/descripciones largos por la versión recortada nueva (más comercial).
+    if data.get("title") and len(p["title"] or "") > 80 and data["title"] != (p["title"] or ""):
+        updates["title"] = data["title"]
+    if data.get("description") and len(p["description"] or "") > 200 and data["description"] != (p["description"] or ""):
+        updates["description"] = data["description"]
     if updates:
         sets = ", ".join(f"{k}=?" for k in updates)
         conn.execute(f"UPDATE properties SET {sets} WHERE id=?", (*updates.values(), prop_id))

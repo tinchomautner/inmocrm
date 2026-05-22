@@ -231,12 +231,14 @@ def _extract_price(text):
 
 
 def _extract_expenses(text):
-    """Detecta gastos comunes: 'Gastos comunes: $ 8.500', 'G.C. U$S 200', o 'sin gastos comunes'."""
-    m = re.search(
-        r"(?:gastos?\s+comun\w*|g\.?\s?c\.?)\s*(?:aprox\w*)?\s*:?\s*"
-        r"((?:U\$?S|USD|US\$|\$U?S?|\$)\s?[\d][\d.,]{1,})",
-        text, re.IGNORECASE,
-    )
+    """Detecta gastos comunes en cualquier orden:
+       'Gastos comunes: $ 8.500'  /  'G.C. U$S 200'  /  '$18.000 Gastos comunes'  /  'sin gastos comunes'."""
+    AMT = r"((?:U\$?S|USD|US\$|\$U?S?|\$)\s?[\d][\d.,]{1,})"
+    # Patrón 1: label antes del valor
+    m = re.search(rf"(?:gastos?\s+comun\w*|g\.?\s?c\.?)\s*(?:aprox\w*)?\s*:?\s*{AMT}", text, re.IGNORECASE)
+    # Patrón 2: valor antes del label (caso casasymas)
+    if not m:
+        m = re.search(rf"{AMT}\s*(?:de\s*)?gastos?\s+comun", text, re.IGNORECASE)
     if m:
         raw = m.group(1)
         num = _clean_num(raw)
