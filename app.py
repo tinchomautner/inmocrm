@@ -69,6 +69,12 @@ def create_client():
     return redirect(url_for("client_detail", client_id=cid))
 
 
+@app.route("/health")
+def health():
+    # Endpoint liviano para el "despertador" (keep-alive) que evita que la app se duerma.
+    return "ok", 200
+
+
 @app.route("/admin/cliente/<int:client_id>")
 def client_detail(client_id):
     conn = get_db()
