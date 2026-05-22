@@ -127,6 +127,7 @@ def client_detail(client_id):
         "interesa": sum(1 for p in props if p["status"] == "interesa"),
         "no_interesa": sum(1 for p in props if p["status"] == "no_interesa"),
         "pendiente": sum(1 for p in props if p["status"] == "pendiente"),
+        "visitadas": sum(1 for p in props if p["visited_at"]),
     }
     return render_template("client_detail.html", client=client, props=props, stats=stats)
 
@@ -232,6 +233,32 @@ def refresh_client(client_id):
     conn.commit()
     conn.close()
     return redirect(url_for("client_detail", client_id=client_id))
+
+
+@app.route("/admin/propiedad/<int:prop_id>/visita", methods=["POST"])
+@login_required
+def visit_property(prop_id):
+    """Marca una propiedad como visitada y guarda un comentario interno (no se muestra al cliente)."""
+    conn = get_db()
+    p = conn.execute("SELECT client_id, visited_at FROM properties WHERE id = ?", (prop_id,)).fetchone()
+    if not p:
+        conn.close()
+        abort(404)
+    is_visited = request.form.get("visited") == "1"
+    visit_comment = request.form.get("visit_comment") or ""
+    # Si recién la marcan como visitada, registro la fecha; si ya tenía, la mantengo.
+    if is_visited:
+        visited_at = p["visited_at"] or now_str()
+    else:
+        visited_at = None
+    conn.execute(
+        "UPDATE properties SET visited_at=?, visit_comment=? WHERE id=?",
+        (visited_at, visit_comment, prop_id),
+    )
+    conn.commit()
+    cid = p["client_id"]
+    conn.close()
+    return redirect(url_for("client_detail", client_id=cid) + f"#prop-{prop_id}")
 
 
 @app.route("/admin/cliente/<int:client_id>/eliminar", methods=["POST"])

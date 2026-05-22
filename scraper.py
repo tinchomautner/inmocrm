@@ -122,6 +122,32 @@ def _from_jsonld(soup):
 
 # ---------- título ----------
 
+def _trim(text, max_len, prefer_seps):
+    """Recorta texto a max_len cortando idealmente en un separador limpio."""
+    if not text:
+        return None
+    t = text.strip()
+    if len(t) <= max_len:
+        return t
+    cut = t[:max_len]
+    for sep in prefer_seps:
+        i = cut.rfind(sep)
+        if i > max_len * 0.5:
+            return cut[:i].rstrip(" .,-·|") + ("…" if sep == " " else "")
+    i = cut.rfind(" ")
+    if i > max_len * 0.55:
+        return cut[:i].rstrip() + "…"
+    return cut.rstrip() + "…"
+
+
+def _short_title(t):
+    return _trim(t, 75, [" · ", " | ", " - ", "Ref ", ". "])
+
+
+def _short_desc(d):
+    return _trim(d, 180, [". ", ".\n", "! ", "? ", " · "])
+
+
 def _is_junk_title(t, site_name=None):
     if not t:
         return True
@@ -268,9 +294,9 @@ def _parse(html_text, url):
     result["location"] = _meta(soup, "og:locality", "og:region", "geo.placename")
 
     if result["title"]:
-        result["title"] = html.unescape(result["title"])[:200]
+        result["title"] = _short_title(html.unescape(result["title"]))
     if result["description"]:
-        result["description"] = html.unescape(result["description"])[:400]
+        result["description"] = _short_desc(html.unescape(result["description"]))
     return result
 
 

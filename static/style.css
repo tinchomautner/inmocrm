@@ -111,6 +111,18 @@ label { display: block; font-size: 11px; letter-spacing: .1em; text-transform: u
 
 details.edit summary { cursor: pointer; color: var(--green-deep); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-top: 10px; }
 
+/* filtros por estado */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.chip { background: var(--white); border: 1px solid var(--line); border-radius: 30px; padding: 7px 14px; font-family: 'Jost'; font-size: 13px; color: var(--charcoal); cursor: pointer; transition: all .2s; }
+.chip:hover { border-color: var(--green); }
+.chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* caja de visita (segunda fase) */
+.visit-box { background: var(--green-soft); border: 1px solid rgba(46,156,62,.25); border-radius: 9px; padding: 10px 12px; margin-top: 10px; }
+.visit-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--charcoal); margin-bottom: 8px; cursor: pointer; }
+.visit-toggle input { width: auto; margin: 0; transform: scale(1.15); accent-color: var(--green); }
+.visit-box textarea { background: #fff; min-height: 48px; font-size: 13.5px; }
+
 .link-share { background: var(--paper); border: 1px dashed var(--line); border-radius: 9px; padding: 12px 15px; font-family: monospace; font-size: 14px; word-break: break-all; color: var(--charcoal); }
 
 /* ============ Portal cliente ============ */

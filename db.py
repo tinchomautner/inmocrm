@@ -83,6 +83,8 @@ def init_db():
             comment TEXT,
             responded_at TEXT,
             expenses TEXT,
+            visited_at TEXT,
+            visit_comment TEXT,
             created_at TEXT NOT NULL
         )
         """,
@@ -91,6 +93,8 @@ def init_db():
     for s in statements:
         conn.execute(s)
     _ensure_column(conn, "properties", "expenses", "TEXT")
+    _ensure_column(conn, "properties", "visited_at", "TEXT")
+    _ensure_column(conn, "properties", "visit_comment", "TEXT")
     conn.commit()
     conn.close()
 

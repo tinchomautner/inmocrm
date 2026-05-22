@@ -43,7 +43,7 @@
 
   <div class="stats">
     <div class="stat"><div><div class="n">{{ stats.total }}</div><div class="l">Propiedades</div></div></div>
-    <div class="stat"><span class="dot green"></span><div><div class="n">{{ stats.interesa }}</div><div class="l">Le interesa</div></div></div>
+    <div class="stat"><span class="dot green"></span><div><div class="n">{{ stats.interesa }}</div><div class="l">Le interesa</div>{% if stats.visitadas %}<div class="l" style="text-transform:none; color:var(--green-deep); margin-top:2px;">✓ {{ stats.visitadas }} visitada{% if stats.visitadas != 1 %}s{% endif %}</div>{% endif %}</div></div>
     <div class="stat"><span class="dot no"></span><div><div class="n">{{ stats.no_interesa }}</div><div class="l">No interesa</div></div></div>
     <div class="stat"><span class="dot pend"></span><div><div class="n">{{ stats.pendiente }}</div><div class="l">Sin responder</div></div></div>
   </div>
@@ -67,9 +67,20 @@
     {% endif %}
   </div>
   <p class="muted small" style="margin:6px 0 14px;">Rellena los datos vacíos (útil para propiedades cargadas antes). No pisa lo que editaste a mano.</p>
+
+  {% if props %}
+  <div class="filters" id="filters">
+    <button class="chip on" data-filter="all">Todas ({{ stats.total }})</button>
+    <button class="chip" data-filter="interesa">🟢 Le interesa ({{ stats.interesa }})</button>
+    <button class="chip" data-filter="pendiente">Pendientes ({{ stats.pendiente }})</button>
+    <button class="chip" data-filter="no_interesa">No interesa ({{ stats.no_interesa }})</button>
+  </div>
+  <p class="muted small" style="margin-top:-6px;">Las descartadas no se borran: quedan acá por si después querés volver a ofrecerlas.</p>
+  {% endif %}
+
   {% if not props %}<p class="muted">Sin propiedades cargadas todavía.</p>{% endif %}
   {% for p in props %}
-    <div class="prop">
+    <div class="prop" id="prop-{{ p.id }}" data-status="{{ p.status }}">
       {% if p.image %}<img class="thumb" src="{{ p.image }}" alt="" referrerpolicy="no-referrer">
       {% else %}<div class="thumb"></div>{% endif %}
       <div>
@@ -83,6 +94,19 @@
         </div>
         <div class="meta"><a href="{{ p.url }}" target="_blank" style="color:var(--green-deep)">Ver aviso original ↗</a></div>
         {% if p.comment %}<div class="comment">💬 "{{ p.comment }}"</div>{% endif %}
+
+        {% if p.status == 'interesa' or p.visited_at %}
+        <div class="visit-box">
+          <form method="post" action="{{ url_for('visit_property', prop_id=p.id) }}">
+            <label class="visit-toggle">
+              <input type="checkbox" name="visited" value="1" {% if p.visited_at %}checked{% endif %}>
+              <span>Visitada{% if p.visited_at %} <span class="muted">({{ p.visited_at[:10] }})</span>{% endif %}</span>
+            </label>
+            <textarea name="visit_comment" placeholder="Comentario interno de la visita (no lo ve el cliente)…">{{ p.visit_comment or '' }}</textarea>
+            <button class="btn secondary" type="submit" style="margin-top:8px; padding:7px 14px; font-size:12px;">Guardar visita</button>
+          </form>
+        </div>
+        {% endif %}
 
         <details class="edit">
           <summary>Editar datos</summary>
@@ -124,6 +148,20 @@ function copyLink() {
   const t = document.getElementById('shareLink').innerText;
   navigator.clipboard.writeText(t).then(() => alert('Link copiado:\n' + t));
 }
+
+// Filtros por estado
+(function(){
+  const wrap = document.getElementById('filters');
+  if (!wrap) return;
+  wrap.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    wrap.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    const f = b.dataset.filter;
+    document.querySelectorAll('.prop').forEach(p => {
+      p.style.display = (f === 'all' || p.dataset.status === f) ? '' : 'none';
+    });
+  });
+})();
 </script>
 </body>
 </html>
