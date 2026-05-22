@@ -133,6 +133,7 @@ details.edit summary { cursor: pointer; color: var(--green-deep); font-size: 12p
 .info .loc { font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--green); font-weight: 500; }
 .info h3 { font-size: 27px; margin: 6px 0 8px; }
 .info .price { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 600; }
+.info .expenses { font-size: 13.5px; color: var(--stone); margin-top: 3px; }
 .info .specs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .info .specs span { background: var(--paper-2); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--charcoal); }
 .info .desc { font-size: 14.5px; color: var(--stone); line-height: 1.7; margin-bottom: 14px; }
@@ -202,10 +203,12 @@ img { max-width: 100%; height: auto; }
   .prop .resp { grid-column: 1 / -1; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .prop .resp form { margin-top: 0 !important; }
 
-  /* stats: 2 por fila (grid determinístico) */
-  .stats { display: grid; grid-template-columns: 1fr 1fr; }
-  .stat { min-width: 0; padding: 12px 14px; }
-  .stat .n { font-size: 26px; }
+  /* stats: Propiedades sola arriba, las otras 3 juntas abajo */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stats .stat:first-child { grid-column: 1 / -1; }
+  .stat { min-width: 0; padding: 12px 10px; gap: 8px; }
+  .stat .n { font-size: 23px; }
+  .stat .l { font-size: 9.5px; letter-spacing: .05em; line-height: 1.2; }
 
   /* portal */
   .info { padding: 20px 18px; }

@@ -82,6 +82,7 @@ def init_db():
             status TEXT NOT NULL DEFAULT 'pendiente',
             comment TEXT,
             responded_at TEXT,
+            expenses TEXT,
             created_at TEXT NOT NULL
         )
         """,
@@ -89,5 +90,16 @@ def init_db():
     conn = get_db()
     for s in statements:
         conn.execute(s)
+    _ensure_column(conn, "properties", "expenses", "TEXT")
     conn.commit()
     conn.close()
+
+
+def _ensure_column(conn, table, col, coltype):
+    """Agrega una columna si falta (para bases ya creadas). Compatible SQLite/Postgres."""
+    if IS_PG:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {coltype}")
+        return
+    cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if col not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")

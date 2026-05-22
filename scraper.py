@@ -204,6 +204,25 @@ def _extract_price(text):
     return None
 
 
+def _extract_expenses(text):
+    """Detecta gastos comunes: 'Gastos comunes: $ 8.500', 'G.C. U$S 200', o 'sin gastos comunes'."""
+    m = re.search(
+        r"(?:gastos?\s+comun\w*|g\.?\s?c\.?)\s*(?:aprox\w*)?\s*:?\s*"
+        r"((?:U\$?S|USD|US\$|\$U?S?|\$)\s?[\d][\d.,]{1,})",
+        text, re.IGNORECASE,
+    )
+    if m:
+        raw = m.group(1)
+        num = _clean_num(raw)
+        # Piso de valor: evita basura tipo "$ 9" por separadores raros (espacios de miles, etc.)
+        if num and int(num) >= 100:
+            cur = "USD" if re.search(r"U", raw, re.IGNORECASE) and re.search(r"S", raw, re.IGNORECASE) else "$"
+            return f"{cur} {_thousands(num)}"
+    if re.search(r"sin\s+gastos?\s+comun\w*", text, re.IGNORECASE):
+        return "Sin gastos comunes"
+    return None
+
+
 def _extract_bedrooms(text):
     m = re.search(r"(\d+)\s*(?:dormitorio|dorm\.?|habitaci[oó]n|cuarto)", text, re.IGNORECASE)
     return m.group(1) if m else None
@@ -219,7 +238,8 @@ def _extract_area(text):
 def _parse(html_text, url):
     result = {
         "url": url, "title": None, "price": None, "image": None,
-        "bedrooms": None, "area": None, "location": None, "description": None, "error": None,
+        "bedrooms": None, "area": None, "location": None, "description": None,
+        "expenses": None, "error": None,
     }
     soup = BeautifulSoup(html_text, "lxml")
     ld = _from_jsonld(soup)
@@ -244,6 +264,7 @@ def _parse(html_text, url):
         result["price"] = _extract_price(blob)
     result["bedrooms"] = _extract_bedrooms(blob)
     result["area"] = _extract_area(blob)
+    result["expenses"] = _extract_expenses(blob)
     result["location"] = _meta(soup, "og:locality", "og:region", "geo.placename")
 
     if result["title"]:
@@ -255,7 +276,7 @@ def _parse(html_text, url):
 
 def _merge(a, b):
     """Completa los campos vacíos de 'a' con los de 'b'."""
-    for k in ("title", "price", "image", "bedrooms", "area", "location", "description"):
+    for k in ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses"):
         if not a.get(k) and b.get(k):
             a[k] = b[k]
     return a
@@ -270,7 +291,7 @@ def scrape(url):
         resp.raise_for_status()
     except Exception as e:
         return {"url": url, "title": None, "price": None, "image": None, "bedrooms": None,
-                "area": None, "location": None, "description": None,
+                "area": None, "location": None, "description": None, "expenses": None,
                 "error": f"No se pudo acceder al link: {e}"}
 
     result = _parse(resp.text, url)

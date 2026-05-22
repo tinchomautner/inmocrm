@@ -150,10 +150,10 @@ def add_property(client_id):
         data = scrape(u)
         conn.execute(
             """INSERT INTO properties
-               (client_id, url, title, price, image, bedrooms, area, location, description, position, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (client_id, url, title, price, image, bedrooms, area, location, description, expenses, position, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (client_id, u, data["title"], data["price"], data["image"], data["bedrooms"],
-             data["area"], data["location"], data["description"], pos, now_str()),
+             data["area"], data["location"], data["description"], data.get("expenses"), pos, now_str()),
         )
     conn.commit()
     conn.close()
@@ -169,11 +169,11 @@ def edit_property(prop_id):
         conn.close()
         abort(404)
     conn.execute(
-        """UPDATE properties SET title=?, price=?, image=?, bedrooms=?, area=?, location=?, description=?
+        """UPDATE properties SET title=?, price=?, image=?, bedrooms=?, area=?, location=?, description=?, expenses=?
            WHERE id=?""",
         (request.form.get("title"), request.form.get("price"), request.form.get("image"),
          request.form.get("bedrooms"), request.form.get("area"), request.form.get("location"),
-         request.form.get("description"), prop_id),
+         request.form.get("description"), request.form.get("expenses"), prop_id),
     )
     conn.commit()
     cid = p["client_id"]
@@ -202,7 +202,7 @@ def _refresh_property(conn, prop_id):
     if not p:
         return None
     data = scrape(p["url"])
-    fields = ("title", "price", "image", "bedrooms", "area", "location", "description")
+    fields = ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses")
     updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
     if updates:
         sets = ", ".join(f"{k}=?" for k in updates)
@@ -260,7 +260,7 @@ def portal(slug):
     props_json = json.dumps([
         {"id": p["id"], "url": p["url"], "title": p["title"], "price": p["price"],
          "image": p["image"], "bedrooms": p["bedrooms"], "area": p["area"],
-         "location": p["location"], "description": p["description"],
+         "location": p["location"], "description": p["description"], "expenses": p["expenses"],
          "status": p["status"], "comment": p["comment"] or ""}
         for p in props
     ])

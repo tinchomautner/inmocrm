@@ -103,6 +103,7 @@ function render(p){
       ${p.location ? `<span class="loc">${esc(p.location)}</span>` : ''}
       <h3>${esc(p.title) || 'Propiedad'}</h3>
       ${p.price ? `<div class="price">${esc(p.price)}</div>` : ''}
+      ${p.expenses ? `<div class="expenses">${p.expenses==='Sin gastos comunes' ? '✓ Sin gastos comunes' : 'Gastos comunes: '+esc(p.expenses)}</div>` : ''}
       ${specs.length ? `<div class="specs">${specs.map(s=>`<span>${esc(s)}</span>`).join('')}</div>` : ''}
       ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
       <a class="ficha" href="${esc(p.url)}" target="_blank">Ver ficha completa &#8599;</a>

@@ -79,6 +79,7 @@
           {% if p.bedrooms %}{{ p.bedrooms }} dorm · {% endif %}
           {% if p.area %}{{ p.area }} · {% endif %}
           {% if p.location %}{{ p.location }}{% endif %}
+          {% if p.expenses %}<br><span class="muted">G.C.: {{ p.expenses }}</span>{% endif %}
         </div>
         <div class="meta"><a href="{{ p.url }}" target="_blank" style="color:var(--green-deep)">Ver aviso original ↗</a></div>
         {% if p.comment %}<div class="comment">💬 "{{ p.comment }}"</div>{% endif %}
@@ -86,9 +87,11 @@
         <details class="edit">
           <summary>Editar datos</summary>
           <form method="post" action="{{ url_for('edit_property', prop_id=p.id) }}" style="margin-top:10px;">
-            <label>Título</label><input name="title" value="{{ p.title or '' }}">
+            <label>Título — editalo para que quede más vendedor (es lo que ve el cliente)</label>
+            <input name="title" value="{{ p.title or '' }}">
             <div class="grid2">
               <div><label>Precio</label><input name="price" value="{{ p.price or '' }}"></div>
+              <div><label>Gastos comunes</label><input name="expenses" value="{{ p.expenses or '' }}" placeholder="ej: $ 8.500"></div>
               <div><label>Dormitorios</label><input name="bedrooms" value="{{ p.bedrooms or '' }}"></div>
               <div><label>Superficie</label><input name="area" value="{{ p.area or '' }}"></div>
               <div><label>Ubicación</label><input name="location" value="{{ p.location or '' }}"></div>
