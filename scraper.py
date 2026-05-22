@@ -13,6 +13,8 @@ HEADERS = {
 }
 
 
+# ---------- helpers ----------
+
 def _meta(soup, *names):
     for name in names:
         tag = soup.find("meta", property=name) or soup.find("meta", attrs={"name": name})
@@ -20,6 +22,36 @@ def _meta(soup, *names):
             return tag["content"].strip()
     return None
 
+
+def _clean_num(text):
+    return re.sub(r"[^\d]", "", text or "")
+
+
+def _thousands(n):
+    try:
+        return f"{int(n):,}".replace(",", ".")
+    except Exception:
+        return str(n)
+
+
+def _norm_currency(cur):
+    c = (cur or "").upper()
+    if "USD" in c or "U$S" in c or "US$" in c or "U$" in c or "DOLAR" in c or "DÓLAR" in c:
+        return "USD"
+    if "UYU" in c or c in ("$", "$U"):
+        return "$"
+    return c.strip() or ""
+
+
+def _fmt_price(amount, currency="USD"):
+    num = _clean_num(str(amount))
+    if not num:
+        return None
+    cur = _norm_currency(currency) or "USD"
+    return f"{cur} {_thousands(num)}".strip()
+
+
+# ---------- JSON-LD ----------
 
 def _iter_jsonld(soup):
     for tag in soup.find_all("script", type="application/ld+json"):
@@ -40,23 +72,41 @@ def _iter_jsonld(soup):
             yield data
 
 
+def _price_from_offers(offers):
+    """Soporta Offer (price) y AggregateOffer (lowPrice/highPrice). Devuelve texto formateado."""
+    if not isinstance(offers, dict):
+        if isinstance(offers, list) and offers:
+            offers = offers[0]
+        else:
+            return None
+    cur = offers.get("priceCurrency", "USD")
+    if offers.get("price"):
+        return _fmt_price(offers["price"], cur)
+    low, high = offers.get("lowPrice"), offers.get("highPrice")
+    if low and high and _clean_num(str(low)) != _clean_num(str(high)):
+        return f"{_norm_currency(cur) or 'USD'} {_thousands(_clean_num(str(low)))} - {_thousands(_clean_num(str(high)))}"
+    if low:
+        return "Desde " + (_fmt_price(low, cur) or "")
+    if high:
+        return _fmt_price(high, cur)
+    return None
+
+
 def _from_jsonld(soup):
     out = {}
     for item in _iter_jsonld(soup):
         if not isinstance(item, dict):
             continue
-        offers = item.get("offers")
-        if isinstance(offers, dict):
-            price = offers.get("price")
-            cur = offers.get("priceCurrency", "")
-            if price and not out.get("price"):
-                out["price"] = f"{cur} {price}".strip()
-        if item.get("name") and not out.get("title"):
-            out["title"] = item["name"]
-        img = item.get("image")
-        if img and not out.get("image"):
+        if not out.get("price") and item.get("offers"):
+            p = _price_from_offers(item["offers"])
+            if p:
+                out["price"] = p
+        if not out.get("title") and item.get("name"):
+            out["title"] = str(item["name"]).strip()
+        if not out.get("image") and item.get("image"):
+            img = item["image"]
             if isinstance(img, list):
-                img = img[0]
+                img = img[0] if img else None
             if isinstance(img, dict):
                 img = img.get("url")
             if isinstance(img, str):
@@ -64,8 +114,9 @@ def _from_jsonld(soup):
     return out
 
 
-def _is_junk_title(t):
-    """Detecta títulos inservibles: vacíos, muy cortos, o placeholders tipo 'Ref: ,'."""
+# ---------- título ----------
+
+def _is_junk_title(t, site_name=None):
     if not t:
         return True
     s = t.strip()
@@ -73,11 +124,13 @@ def _is_junk_title(t):
         return True
     if re.fullmatch(r"(?:ref\.?\s*:?\s*[,;.\-/]*\s*)+", s, re.IGNORECASE):
         return True
+    if site_name and s.lower() == site_name.strip().lower():
+        return True
     return False
 
 
-def _best_title(soup):
-    # h1 más largo de los primeros (evita un h1 chico de logo/nav)
+def _best_title(soup, ld):
+    site_name = _meta(soup, "og:site_name")
     h1 = None
     h1s = [h.get_text(" ", strip=True) for h in soup.find_all("h1", limit=5)]
     h1s = [h for h in h1s if h]
@@ -85,30 +138,63 @@ def _best_title(soup):
         h1 = max(h1s, key=len)
     candidates = [
         _meta(soup, "og:title", "twitter:title"),
+        ld.get("title"),
         h1,
         (soup.title.string.strip() if soup.title and soup.title.string else None),
     ]
     for c in candidates:
-        if not _is_junk_title(c):
+        if not _is_junk_title(c, site_name):
             return c
-    for c in candidates:  # último recurso: lo que haya
+    for c in candidates:
         if c and c.strip():
             return c
     return None
 
 
-def _clean_num(text):
-    return re.sub(r"[^\d]", "", text or "")
+# ---------- imagen ----------
+
+def _is_logo(u):
+    u = (u or "").lower()
+    return any(k in u for k in ("logo", "placeholder", "/icon", "favicon", "sprite"))
+
+
+def _best_image(soup, ld):
+    og = _meta(soup, "og:image", "twitter:image")
+    if og and not _is_logo(og):
+        return og
+    if ld.get("image") and not _is_logo(ld["image"]):
+        return ld["image"]
+    for img in soup.find_all("img"):
+        src = img.get("src") or img.get("data-src") or img.get("data-lazy") or img.get("data-original") or ""
+        if src.startswith("http") and not _is_logo(src) and not src.lower().endswith(".svg"):
+            return src
+    return og or ld.get("image")
+
+
+# ---------- precio desde texto ----------
+
+def _money_matches(text):
+    out = []
+    for m in re.finditer(r"(U\$?S|USD|US\$|\$U?S?|\$)\s?([\d][\d.,]{2,})", text, re.IGNORECASE):
+        cur_raw = m.group(1).upper()
+        num = _clean_num(m.group(2))
+        if not num:
+            continue
+        is_usd = "U" in cur_raw or "USD" in cur_raw  # U$S / US$ / USD / $U
+        out.append((is_usd, int(num)))
+    return out
 
 
 def _extract_price(text):
-    # USD 185.000 / U$S 185000 / $ 185.000
-    m = re.search(r"(U\$?S|USD|US\$|\$U?)\s?([\d.,]{4,})", text, re.IGNORECASE)
-    if m:
-        num = _clean_num(m.group(2))
-        if num:
-            cur = "USD" if "U" in m.group(1).upper() and "S" in m.group(1).upper() else "$"
-            return f"{cur} {int(num):,}".replace(",", ".")
+    # Primer monto plausible (el precio principal suele ser el primero del aviso).
+    # Se prioriza USD; los montos chicos (precio/m², expensas) quedan filtrados por el piso.
+    matches = _money_matches(text)
+    for is_usd, v in matches:
+        if is_usd and 1000 <= v <= 100_000_000:
+            return "USD " + _thousands(v)
+    for is_usd, v in matches:
+        if not is_usd and 10000 <= v <= 10_000_000_000:
+            return "$ " + _thousands(v)
     return None
 
 
@@ -122,18 +208,13 @@ def _extract_area(text):
     return f"{m.group(1)} m²" if m else None
 
 
+# ---------- principal ----------
+
 def scrape(url):
-    """Return a dict with best-effort property data. Never raises."""
+    """Devuelve dict con los datos de la propiedad. Nunca lanza excepción."""
     result = {
-        "url": url,
-        "title": None,
-        "price": None,
-        "image": None,
-        "bedrooms": None,
-        "area": None,
-        "location": None,
-        "description": None,
-        "error": None,
+        "url": url, "title": None, "price": None, "image": None,
+        "bedrooms": None, "area": None, "location": None, "description": None, "error": None,
     }
     try:
         resp = requests.get(url, headers=HEADERS, timeout=15)
@@ -143,32 +224,29 @@ def scrape(url):
         return result
 
     soup = BeautifulSoup(resp.text, "lxml")
-
-    result["title"] = _best_title(soup)
-    result["image"] = _meta(soup, "og:image", "twitter:image")
-    result["description"] = _meta(soup, "og:description", "description", "twitter:description")
-    result["price"] = _meta(soup, "product:price:amount", "og:price:amount")
-    if result["price"]:
-        cur = _meta(soup, "product:price:currency", "og:price:currency") or ""
-        result["price"] = f"{cur} {result['price']}".strip()
-
     ld = _from_jsonld(soup)
-    for k in ("title", "price", "image"):
-        if not result[k] and ld.get(k):
-            result[k] = ld[k]
 
-    # Build a text blob for regex fallbacks
-    blob = " ".join(
-        filter(None, [result["title"], result["description"], soup.get_text(" ", strip=True)[:4000]])
-    )
+    result["title"] = _best_title(soup, ld)
+    result["image"] = _best_image(soup, ld)
+    result["description"] = _meta(soup, "og:description", "description", "twitter:description")
+
+    # ---- precio: meta -> JSON-LD -> texto ----
+    price_meta = _meta(soup, "product:price:amount", "og:price:amount")
+    if price_meta and re.search(r"\d", price_meta):
+        cur = _meta(soup, "product:price:currency", "og:price:currency") or "USD"
+        result["price"] = _fmt_price(price_meta, cur)
+    elif ld.get("price"):
+        result["price"] = ld["price"]
+
+    # texto para fallbacks
+    blob = " ".join(filter(None, [result["title"], result["description"],
+                                  soup.get_text(" ", strip=True)[:6000]]))
     blob = html.unescape(blob)
 
-    if not result["price"] or not re.search(r"\d", result["price"]):
-        result["price"] = _extract_price(blob) or result["price"]
+    if not result["price"]:
+        result["price"] = _extract_price(blob)
     result["bedrooms"] = _extract_bedrooms(blob)
     result["area"] = _extract_area(blob)
-
-    # Location: try og:locality / address-ish from title
     result["location"] = _meta(soup, "og:locality", "og:region", "geo.placename")
 
     if result["title"]:
