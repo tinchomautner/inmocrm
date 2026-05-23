@@ -301,6 +301,20 @@ def portal(slug):
                            advisor_name=ADVISOR_NAME, advisor_wpp=ADVISOR_WHATSAPP)
 
 
+@app.route("/api/cliente/<slug>/finalizar", methods=["POST"])
+def finalize_selection(slug):
+    """El portal del cliente marca su selección como terminada (notifica al corredor)."""
+    conn = get_db()
+    c = conn.execute("SELECT id FROM clients WHERE slug = ?", (slug,)).fetchone()
+    if not c:
+        conn.close()
+        return jsonify({"ok": False}), 404
+    conn.execute("UPDATE clients SET finished_at = ? WHERE id = ?", (now_str(), c["id"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/propiedad/<int:prop_id>/responder", methods=["POST"])
 def respond(prop_id):
     data = request.get_json(force=True, silent=True) or {}

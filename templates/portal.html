@@ -38,6 +38,20 @@
   {% else %}
   <div class="done"><div class="big">📭</div><p class="muted">Todavía no hay propiedades para mostrar.</p></div>
   {% endif %}
+
+  <!-- Pantalla de TERMINADO (oculta hasta que el cliente finalice) -->
+  <div class="done-screen" id="doneScreen" style="display:none;">
+    <div class="done-card">
+      <div class="big">🎉</div>
+      <h2>¡Listo, {{ client.name }}!</h2>
+      <p class="muted">Tus preferencias quedaron guardadas. {{ advisor_name }} ya las puede ver en su panel.</p>
+      <div class="summary" id="summary"></div>
+      <div class="done-actions">
+        <a class="btn" id="waBtn" target="_blank" rel="noopener">📱 Avisarle a {{ advisor_name }} por WhatsApp <span class="muted small" style="color:rgba(255,255,255,.7);font-weight:400">(opcional)</span></a>
+        <button class="btn secondary" id="reviewBtn" type="button">✏️ Volver a revisar</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 {% if props %}
@@ -170,23 +184,55 @@ document.getElementById('lbx').onclick = ()=>lb.classList.remove('open');
 lb.onclick = e=>{ if(e.target===lb) lb.classList.remove('open'); };
 addEventListener('keydown', e=>{ if(e.key==='Escape') lb.classList.remove('open'); });
 
-// finalizar -> abre WhatsApp con mensaje al asesor
+// finalizar -> guarda 'terminado', muestra pantalla, deja WhatsApp opcional
 const ADVISOR_NAME = {{ advisor_name | tojson }};
 const ADVISOR_WPP = {{ advisor_wpp | tojson }};
 const CLIENT_NAME = {{ client.name | tojson }};
+const CLIENT_SLUG = {{ client.slug | tojson }};
+
+function buildWaUrl(){
+  const i = PROPS.filter(p=>p.status==='interesa').length;
+  let msg = `Hola ${ADVISOR_NAME}! Soy ${CLIENT_NAME}, ya terminé mi selección de propiedades.`;
+  if (i === 1) msg += ` Me interesa 1 propiedad.`;
+  else if (i > 1) msg += ` Me interesan ${i} propiedades.`;
+  return `https://wa.me/${ADVISOR_WPP}?text=${encodeURIComponent(msg)}`;
+}
+
+function showDoneScreen(){
+  const i = PROPS.filter(p=>p.status==='interesa').length;
+  const n = PROPS.filter(p=>p.status==='no_interesa').length;
+  const pend = PROPS.filter(p=>p.status==='pendiente').length;
+  const summary = document.getElementById('summary');
+  summary.innerHTML = `
+    <div class="sum-row"><span>🟢 Me interesan</span><b>${i}</b></div>
+    <div class="sum-row"><span>⚪ Descartadas</span><b>${n}</b></div>
+    ${pend ? `<div class="sum-row muted"><span>Pendientes (sin responder)</span><b>${pend}</b></div>` : ''}
+  `;
+  document.getElementById('waBtn').href = buildWaUrl();
+  document.getElementById('cards').style.display = 'none';
+  document.querySelector('.actionbar').style.display = 'none';
+  document.getElementById('doneScreen').style.display = 'block';
+  document.getElementById('doneScreen').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 const finishBtn = document.getElementById('finishBtn');
 if (finishBtn) finishBtn.addEventListener('click', ()=>{
-  const i = PROPS.filter(p=>p.status==='interesa').length;
   const pend = PROPS.filter(p=>p.status==='pendiente').length;
   if (PROPS.length && pend === PROPS.length){
     alert('Marcá al menos una propiedad antes de finalizar.');
     return;
   }
-  let msg = `Hola ${ADVISOR_NAME}! Soy ${CLIENT_NAME}, ya terminé mi selección de propiedades.`;
-  if (i === 1) msg += ` Me interesa 1 propiedad.`;
-  else if (i > 1) msg += ` Me interesan ${i} propiedades.`;
-  const url = `https://wa.me/${ADVISOR_WPP}?text=${encodeURIComponent(msg)}`;
-  window.open(url, '_blank');
+  // Notifica al panel que el cliente terminó (no bloqueante para la UI)
+  fetch(`/api/cliente/${CLIENT_SLUG}/finalizar`, {method:'POST'}).catch(()=>{});
+  showDoneScreen();
+});
+
+const reviewBtn = document.getElementById('reviewBtn');
+if (reviewBtn) reviewBtn.addEventListener('click', ()=>{
+  document.getElementById('doneScreen').style.display = 'none';
+  document.getElementById('cards').style.display = '';
+  document.querySelector('.actionbar').style.display = '';
+  window.scrollTo({top:0, behavior:'smooth'});
 });
 
 if (PROPS.length){ PROPS.forEach(render); updateStats(); }

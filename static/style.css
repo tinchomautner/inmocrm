@@ -192,6 +192,25 @@ footer a:hover { color: var(--green); }
 .done { text-align: center; padding: 60px 20px; }
 .done .big { font-size: 3rem; }
 
+/* pantalla 'terminado' del portal */
+.done-screen { padding: 40px 0 60px; }
+.done-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 36px 26px; text-align: center; box-shadow: var(--shadow); max-width: 520px; margin: 0 auto; }
+.done-card .big { font-size: 3.4rem; line-height: 1; margin-bottom: 8px; }
+.done-card h2 { font-size: 30px; margin: 6px 0 10px; }
+.done-card .muted { font-size: 15px; line-height: 1.6; max-width: 380px; margin: 0 auto 22px; }
+.summary { background: var(--paper); border-radius: 12px; padding: 14px 18px; margin: 0 auto 22px; max-width: 320px; text-align: left; }
+.sum-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 15px; border-bottom: 1px solid var(--line); }
+.sum-row:last-child { border-bottom: none; }
+.sum-row b { font-family: 'Cormorant Garamond', serif; font-size: 22px; }
+.sum-row.muted { color: var(--stone); }
+.done-actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; max-width: 360px; margin: 0 auto; }
+.done-actions .btn { justify-content: center; padding: 14px 18px; font-size: 13px; line-height: 1.3; flex-wrap: wrap; gap: 6px; }
+
+/* badge 'cliente terminó su selección' en el panel admin */
+.client-card .badge.finished { background: var(--green); color: #fff; font-weight: 500; }
+.banner-finished { background: var(--green-soft); border: 1px solid rgba(46,156,62,.3); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; color: var(--green-deep); font-size: 14.5px; display: flex; align-items: center; gap: 10px; }
+.banner-finished .icon { font-size: 20px; }
+
 /* ============ Responsive (mobile / tablet) ============ */
 img { max-width: 100%; height: auto; }
 

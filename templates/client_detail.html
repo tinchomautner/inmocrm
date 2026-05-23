@@ -34,6 +34,13 @@
     </form>
   </div>
 
+  {% if client.finished_at %}
+  <div class="banner-finished">
+    <span class="icon">✅</span>
+    <div><strong>El cliente finalizó su selección</strong> el {{ client.finished_at[:16] }}. Revisá sus respuestas abajo.</div>
+  </div>
+  {% endif %}
+
   <div class="panel">
     <h2>Link para enviarle al cliente</h2>
     <div class="row wrap" style="align-items:center;">

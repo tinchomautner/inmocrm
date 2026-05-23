@@ -63,6 +63,7 @@ def init_db():
             id {id_col},
             name TEXT NOT NULL,
             slug TEXT NOT NULL UNIQUE,
+            finished_at TEXT,
             created_at TEXT NOT NULL
         )
         """,
@@ -95,6 +96,7 @@ def init_db():
     _ensure_column(conn, "properties", "expenses", "TEXT")
     _ensure_column(conn, "properties", "visited_at", "TEXT")
     _ensure_column(conn, "properties", "visit_comment", "TEXT")
+    _ensure_column(conn, "clients", "finished_at", "TEXT")
     conn.commit()
     conn.close()
 

@@ -47,6 +47,7 @@
         <div class="muted small">/p/{{ c.slug }} · creado {{ c.created_at }}</div>
       </div>
       <div class="badges">
+        {% if c.finished_at %}<span class="badge finished">✅ Terminó {{ c.finished_at[:10] }}</span>{% endif %}
         <span class="badge">{{ c.total or 0 }} props</span>
         <span class="badge green">{{ c.interesa or 0 }} interesa</span>
         <span class="badge">{{ c.respondidas or 0 }}/{{ c.total or 0 }} respondidas</span>
