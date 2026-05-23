@@ -34,12 +34,30 @@
       <input type="text" name="name" placeholder="Nombre del cliente (ej: Juan Pérez)" required style="flex:1; min-width:240px;">
       <button class="btn" type="submit">Crear cliente</button>
     </form>
+    <p class="muted small" style="margin-top:14px;">
+      <a href="{{ url_for('system_status') }}" style="color:var(--green-deep);">🩺 Estado del sistema</a>
+      &nbsp;·&nbsp;
+      <a href="{{ url_for('backup') }}" style="color:var(--green-deep);">⬇️ Descargar backup</a>
+      &nbsp;·&nbsp;
+      <a href="#" onclick="testWa(event)" style="color:var(--green-deep);">🔔 Probar WhatsApp</a>
+    </p>
   </div>
 
   <h2>Clientes ({{ clients|length }})</h2>
   {% if not clients %}
     <p class="muted">Todavía no creaste ningún cliente.</p>
   {% endif %}
+  <script>
+  function testWa(e){
+    e.preventDefault();
+    fetch('/admin/notif-test', {method:'POST'})
+      .then(r=>r.json()).then(d=>{
+        if(!d.configurado) alert('CallMeBot no está configurado todavía. Pone las variables NOTIFY_WHATSAPP y CALLMEBOT_APIKEY en Render.');
+        else alert('Mandé el WhatsApp de prueba. Si no llega en 1-2 min, revisá la APIKEY.');
+      }).catch(()=>alert('Error mandando el test.'));
+  }
+  </script>
+
   {% for c in clients %}
     <a class="client-card" href="{{ url_for('client_detail', client_id=c.id) }}">
       <div>

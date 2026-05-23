@@ -47,6 +47,10 @@ En `app.py`:
 - `ADMIN_PASSWORD` — contraseña del panel del corredor. **Definirla sí o sí en producción**
   (el default `etxe2026` es público en el repo).
 - `SECRET_KEY` — texto aleatorio largo para firmar las sesiones de login.
+- `NOTIFY_WHATSAPP` — número del corredor (sin `+`, con código país) que recibe la notificación
+  cuando un cliente finaliza su selección. Si no se define, usa `ADVISOR_WHATSAPP`.
+- `CALLMEBOT_APIKEY` — apikey del bot de WhatsApp (https://www.callmebot.com/blog/free-api-whatsapp-messages/).
+  Sin esto, la notificación queda en silencio (igual el badge en el panel sigue funcionando).
 
 ## Publicarlo online (para que los clientes abran el link)
 

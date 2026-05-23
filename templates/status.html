@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estado del sistema · Inmocrm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .status-grid { grid-template-columns: 1fr; } }
+    .stitem { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+    .stitem h3 { font-size: 18px; margin-bottom: 4px; }
+    .stitem .v { font-size: 14px; color: var(--charcoal); }
+    .ok { color: var(--green-deep); font-weight: 500; }
+    .warn { color: #b86a00; font-weight: 500; }
+    .bad { color: var(--love); font-weight: 500; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="inner">
+    <a href="{{ url_for('admin_home') }}" aria-label="Ir al listado de clientes">
+      <img src="{{ url_for('static', filename='img/etxe_logo.png') }}" alt="Etxe Bienes Raíces">
+    </a>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <span class="tag">Estado del sistema</span>
+      <a class="tag" href="{{ url_for('logout') }}" style="color:var(--green-deep);">Salir</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="intro" style="padding:30px 0 18px;">
+    <a href="{{ url_for('admin_home') }}" class="muted small">← Listado de clientes</a>
+    <h1 style="margin-top:6px;">Estado del sistema</h1>
+    <p class="muted">Chequeo rápido de que todo esté funcionando como debe.</p>
+  </div>
+
+  <div class="status-grid">
+    <div class="stitem">
+      <h3>🗄️ Base de datos</h3>
+      <div class="v">
+        Motor: <strong>{{ info.db_type }}</strong><br>
+        Conexión:
+        {% if info.db_ok %}<span class="ok">✅ OK</span>
+        {% else %}<span class="bad">❌ Falla — {{ info.db_error or 'sin detalle' }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="stitem">
+      <h3>📊 Datos</h3>
+      <div class="v">
+        Clientes: <strong>{{ info.clients }}</strong><br>
+        Propiedades: <strong>{{ info.properties }}</strong><br>
+        Selecciones finalizadas: <strong>{{ info.finished }}</strong> · Visitadas: <strong>{{ info.visited }}</strong>
+      </div>
+    </div>
+
+    <div class="stitem">
+      <h3>🔔 Notificación WhatsApp</h3>
+      <div class="v">
+        {% if info.callmebot_ok %}<span class="ok">✅ Configurada</span> — al número <strong>+{{ info.notify_to }}</strong>
+        {% else %}<span class="warn">⚠️ No configurada</span> — sin CallMeBot apikey. Igual el badge en el panel sigue funcionando.
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="stitem">
+      <h3>🔒 Seguridad</h3>
+      <div class="v">
+        Contraseña admin: {% if info.admin_password_custom %}<span class="ok">✅ Personalizada</span>{% else %}<span class="bad">❌ Default (etxe2026)</span> — cambiala en Render{% endif %}<br>
+        SECRET_KEY: {% if info.secret_key_custom %}<span class="ok">✅ Personalizada</span>{% else %}<span class="warn">⚠️ Default</span> — configurala en Render{% endif %}
+      </div>
+    </div>
+
+    <div class="stitem">
+      <h3>👤 Asesor (para el cliente)</h3>
+      <div class="v">
+        Nombre: <strong>{{ info.advisor_name }}</strong><br>
+        WhatsApp para el cliente: <strong>+{{ info.advisor_wpp }}</strong>
+      </div>
+    </div>
+
+    <div class="stitem">
+      <h3>💾 Copia de seguridad</h3>
+      <div class="v">
+        Bajá una copia ahora mismo para tenerla guardada.<br>
+        <a class="btn secondary" href="{{ url_for('backup') }}" style="margin-top:10px;">⬇️ Descargar backup (.json)</a>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="margin-top:36px;">Recomendación: rutina mensual de 5 min</h2>
+  <div class="panel">
+    <ol style="padding-left:22px; line-height:2;">
+      <li><strong>Bajar un backup</strong> desde acá (botón arriba) y guardarlo en tu Drive/Dropbox.</li>
+      <li>Tocar <a href="#" onclick="testWa(event)" style="color:var(--green-deep);">🔔 Probar WhatsApp</a> y confirmar que te llega. <em>(CallMeBot expira si no se usa por 3 meses.)</em></li>
+      <li>Mirar en <a href="https://render.com" target="_blank" style="color:var(--green-deep);">Render → Metrics</a> las horas usadas del mes (el free tiene 750h).</li>
+      <li>Mirar en <a href="https://cron-job.org" target="_blank" style="color:var(--green-deep);">cron-job.org → History</a> que las pings sean todas verdes.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+function testWa(e){
+  e.preventDefault();
+  fetch('/admin/notif-test', {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      if(!d.configurado) alert('CallMeBot no está configurado todavía. Pone las variables NOTIFY_WHATSAPP y CALLMEBOT_APIKEY en Render.');
+      else alert('Mandé el WhatsApp de prueba. Si no llega en 1-2 min, revisá la APIKEY.');
+    }).catch(()=>alert('Error mandando el test.'));
+}
+</script>
+</body>
+</html>

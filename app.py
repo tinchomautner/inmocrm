@@ -1,12 +1,16 @@
 import os
 import re
 import json
+import threading
 import unicodedata
+import urllib.parse
 from functools import wraps
+
+import requests as _http
 from flask import (
-    Flask, render_template, request, redirect, url_for, jsonify, abort, session
+    Flask, render_template, request, redirect, url_for, jsonify, abort, session, Response
 )
-from db import get_db, init_db, now_str
+from db import get_db, init_db, now_str, IS_PG
 from scraper import scrape
 
 app = Flask(__name__)
@@ -20,6 +24,32 @@ ADVISOR_WHATSAPP = "59892364337"  # +598 92 364 337
 
 # Contraseña del panel del corredor. En el host se configura con la variable ADMIN_PASSWORD.
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "etxe2026")
+
+# Notificación al corredor por WhatsApp (vía CallMeBot, gratis).
+# NOTIFY_WHATSAPP: número del corredor (sin '+', con código país). Default: el del asesor.
+# CALLMEBOT_APIKEY: la apikey que te da el bot por WhatsApp tras hacer el opt-in.
+NOTIFY_WHATSAPP = os.environ.get("NOTIFY_WHATSAPP", "").strip() or ADVISOR_WHATSAPP
+CALLMEBOT_APIKEY = os.environ.get("CALLMEBOT_APIKEY", "").strip()
+
+
+def _notify_admin_whatsapp(message):
+    """Envía un WhatsApp al corredor vía CallMeBot. Fire-and-forget (no bloquea la respuesta).
+    Silencioso si no está configurada la apikey."""
+    if not CALLMEBOT_APIKEY or not NOTIFY_WHATSAPP:
+        return False
+    def _send():
+        try:
+            url = (
+                "https://api.callmebot.com/whatsapp.php?"
+                f"phone={NOTIFY_WHATSAPP}"
+                f"&text={urllib.parse.quote(message)}"
+                f"&apikey={CALLMEBOT_APIKEY}"
+            )
+            _http.get(url, timeout=15)
+        except Exception:
+            pass  # No queremos que un fallo de notif corte el flujo del usuario.
+    threading.Thread(target=_send, daemon=True).start()
+    return True
 
 
 def login_required(view):
@@ -106,8 +136,15 @@ def create_client():
 
 @app.route("/health")
 def health():
-    # Endpoint liviano para el "despertador" (keep-alive) que evita que la app se duerma.
-    return "ok", 200
+    """Endpoint del 'despertador'. Toca la DB para mantener viva a Neon también,
+    y devuelve 503 si la base no responde (así te enterás si algo está mal)."""
+    try:
+        conn = get_db()
+        conn.execute("SELECT 1").fetchone()
+        conn.close()
+        return "ok", 200
+    except Exception as e:
+        return f"db-error: {e}", 503
 
 
 @app.route("/admin/cliente/<int:client_id>")
@@ -235,7 +272,10 @@ def refresh_client(client_id):
     conn = get_db()
     rows = conn.execute("SELECT id FROM properties WHERE client_id = ?", (client_id,)).fetchall()
     for r in rows:
-        _refresh_property(conn, r["id"])
+        try:
+            _refresh_property(conn, r["id"])
+        except Exception as e:
+            print(f"[refresh] prop {r['id']} fallo: {e}")  # sigue con las demas
     conn.commit()
     conn.close()
     return redirect(url_for("client_detail", client_id=client_id))
@@ -305,14 +345,89 @@ def portal(slug):
 def finalize_selection(slug):
     """El portal del cliente marca su selección como terminada (notifica al corredor)."""
     conn = get_db()
-    c = conn.execute("SELECT id FROM clients WHERE slug = ?", (slug,)).fetchone()
+    c = conn.execute("SELECT id, name FROM clients WHERE slug = ?", (slug,)).fetchone()
     if not c:
         conn.close()
         return jsonify({"ok": False}), 404
     conn.execute("UPDATE clients SET finished_at = ? WHERE id = ?", (now_str(), c["id"]))
+    counts = conn.execute(
+        """SELECT
+              COUNT(*) AS t,
+              SUM(CASE WHEN status='interesa'    THEN 1 ELSE 0 END) AS i,
+              SUM(CASE WHEN status='no_interesa' THEN 1 ELSE 0 END) AS n
+           FROM properties WHERE client_id = ?""",
+        (c["id"],),
+    ).fetchone()
     conn.commit()
+    cid, cname = c["id"], c["name"]
     conn.close()
+
+    msg = (
+        f"🏠 {cname} terminó su selección.\n"
+        f"🟢 Le interesa: {counts['i'] or 0}   ⚪ Descarta: {counts['n'] or 0}   (de {counts['t'] or 0})\n"
+        f"Ver: {request.host_url}admin/cliente/{cid}"
+    )
+    _notify_admin_whatsapp(msg)
     return jsonify({"ok": True})
+
+
+@app.route("/admin/backup")
+@login_required
+def backup():
+    """Descarga un JSON con todos los datos para guardar como copia de seguridad."""
+    conn = get_db()
+    clients = [dict(r) for r in conn.execute("SELECT * FROM clients ORDER BY id").fetchall()]
+    properties = [dict(r) for r in conn.execute("SELECT * FROM properties ORDER BY id").fetchall()]
+    conn.close()
+    payload = {
+        "version": 1,
+        "generated_at": now_str(),
+        "clients": clients,
+        "properties": properties,
+        "counts": {"clients": len(clients), "properties": len(properties)},
+    }
+    body = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+    stamp = now_str().replace(" ", "_").replace(":", "-")
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={"Content-Disposition": f'attachment; filename="inmocrm-backup-{stamp}.json"'},
+    )
+
+
+@app.route("/admin/estado")
+@login_required
+def system_status():
+    """Página de salud del sistema: DB, integraciones, contadores."""
+    info = {
+        "db_ok": False, "db_type": "Postgres (Neon)" if IS_PG else "SQLite local",
+        "clients": 0, "properties": 0, "finished": 0, "visited": 0,
+        "callmebot_ok": bool(CALLMEBOT_APIKEY),
+        "notify_to": NOTIFY_WHATSAPP,
+        "secret_key_custom": os.environ.get("SECRET_KEY") not in (None, "", "dev-secret-cambiar-en-produccion"),
+        "admin_password_custom": ADMIN_PASSWORD != "etxe2026",
+        "advisor_name": ADVISOR_NAME,
+        "advisor_wpp": ADVISOR_WHATSAPP,
+    }
+    try:
+        conn = get_db()
+        info["db_ok"] = True
+        info["clients"] = conn.execute("SELECT COUNT(*) AS n FROM clients").fetchone()["n"]
+        info["properties"] = conn.execute("SELECT COUNT(*) AS n FROM properties").fetchone()["n"]
+        info["finished"] = conn.execute("SELECT COUNT(*) AS n FROM clients WHERE finished_at IS NOT NULL").fetchone()["n"]
+        info["visited"] = conn.execute("SELECT COUNT(*) AS n FROM properties WHERE visited_at IS NOT NULL").fetchone()["n"]
+        conn.close()
+    except Exception as e:
+        info["db_error"] = str(e)
+    return render_template("status.html", info=info)
+
+
+@app.route("/admin/notif-test", methods=["POST"])
+@login_required
+def notif_test():
+    """Manda un WhatsApp de prueba al corredor para validar el setup de CallMeBot."""
+    ok = _notify_admin_whatsapp("✅ Test de notificación de inmocrm — está todo conectado.")
+    return jsonify({"ok": ok, "configurado": bool(CALLMEBOT_APIKEY)})
 
 
 @app.route("/api/propiedad/<int:prop_id>/responder", methods=["POST"])
