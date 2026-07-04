@@ -280,7 +280,7 @@ def add_property(client_id):
 @login_required
 def edit_property(prop_id):
     conn = get_db()
-    p = conn.execute("SELECT client_id, title FROM properties WHERE id = ?", (prop_id,)).fetchone()
+    p = conn.execute("SELECT client_id, title, ptype, gancho, description FROM properties WHERE id = ?", (prop_id,)).fetchone()
     if not p:
         conn.close()
         abort(404)
@@ -288,11 +288,13 @@ def edit_property(prop_id):
     lat, lng = coords_from_maps(map_url) if map_url else (None, None)
 
     f_title = (request.form.get("title") or "").strip()
-    f_ptype = request.form.get("ptype")
     f_bedrooms = request.form.get("bedrooms")
     f_location = request.form.get("location")
     f_address = request.form.get("address")
-    f_gancho = request.form.get("gancho")
+    # Tipo y gancho ya no están en el formulario: preservamos lo guardado.
+    # Si no hay tipo guardado, lo detectamos al vuelo del título/descripción (para armar el título).
+    f_ptype = p["ptype"] or _extract_ptype(" ".join(filter(None, [p["title"], p["description"]])))
+    f_gancho = p["gancho"]
     # Título automático: si NO tocaste el título a mano, lo re-armamos con las piezas
     # (así el gancho y demás entran solos) y sigue siendo "auto". Si lo reescribiste,
     # se respeta tu versión y se marca como personalizado (title_custom=1).

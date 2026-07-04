@@ -121,11 +121,7 @@
         <details class="edit">
           <summary>Editar datos</summary>
           <form method="post" action="{{ url_for('edit_property', prop_id=p.id) }}" style="margin-top:10px;">
-            <label>Tipo — se detecta solo (Apartamento, Casa, Terreno…)</label>
-            <input name="ptype" value="{{ p.ptype or ptype_guess.get(p.id, '') }}" placeholder="ej: Apartamento">
-            <label>Gancho / diferencial — lo vendedor (opcional, se agrega al título tal cual)</label>
-            <input name="gancho" value="{{ p.gancho or '' }}" placeholder="ej: con vista al mar · a estrenar · con jardín">
-            <label>Título — se arma solo con las piezas de arriba. Si lo escribís a mano, se respeta.</label>
+            <label>Título — se arma solo (ZONA: Tipo N dormitorios). Si lo escribís a mano, se respeta.</label>
             <input name="title" value="{{ p.title or '' }}">
             <div class="grid2">
               <div><label>Precio</label><input name="price" value="{{ p.price or '' }}"></div>
