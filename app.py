@@ -123,7 +123,7 @@ def compose_title(location, ptype, bedrooms, gancho, address):
     if b and b.isdigit():
         core += f" {b} dormitorio" + ("s" if b != "1" else "")
     if gancho and gancho.strip():
-        core += f" con {gancho.strip()}"
+        core += f" {gancho.strip()}"
     loc = (location or "").strip()
     title = (f"{loc.upper()}: " if loc else "") + core
     addr = (address or "").strip()
@@ -252,9 +252,10 @@ def add_property(client_id):
             print(f"[add_property] scrape {u} fallo: {e}")
             data = {"title": None, "price": None, "image": None, "bedrooms": None,
                     "area": None, "location": None, "description": None, "expenses": None}
-        # Título sistematizado automático: si tenemos la zona, lo armamos con el formato estándar;
-        # si no, dejamos el título extraído del aviso.
-        if data.get("location"):
+        # Título sistematizado automático: lo armamos con el formato estándar siempre que
+        # tengamos al menos el tipo (con zona sale "ZONA: Tipo…"; sin zona, "Tipo N dorm…").
+        # Si no hay ni tipo ni zona, dejamos el título extraído del aviso.
+        if data.get("ptype") or data.get("location"):
             title_final = compose_title(data.get("location"), data.get("ptype"),
                                         data.get("bedrooms"), None, data.get("address"))
         else:
@@ -297,7 +298,7 @@ def edit_property(prop_id):
     # se respeta tu versión y se marca como personalizado (title_custom=1).
     if f_title == (p["title"] or "").strip():
         title_custom = 0
-        if (f_location or "").strip():
+        if (f_location or "").strip() or (f_ptype or "").strip():
             f_title = compose_title(f_location, f_ptype, f_bedrooms, f_gancho, f_address)
     else:
         title_custom = 1
@@ -347,9 +348,10 @@ def _refresh_property(conn, prop_id):
     # tenemos la zona; si no hay zona, caemos al título del aviso (recortado).
     if not p["title_custom"]:
         loc = data.get("location") or p["location"]
-        if loc:
+        ptype = data.get("ptype") or p["ptype"]
+        if loc or ptype:
             updates["title"] = compose_title(
-                loc, data.get("ptype") or p["ptype"], data.get("bedrooms") or p["bedrooms"],
+                loc, ptype, data.get("bedrooms") or p["bedrooms"],
                 p["gancho"], data.get("address") or p["address"],
             )
         elif data.get("title") and (
