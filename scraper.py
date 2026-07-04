@@ -312,6 +312,34 @@ def _extract_ptype(text):
     return None
 
 
+# Palabras que NO son un barrio (evita falsos positivos del patrón "en …").
+_NOT_A_PLACE = {
+    "suite", "el frente", "construcción", "construccion", "venta", "alquiler",
+    "planta", "obra", "pozo", "excelente", "estrenar", "perfectas", "condiciones",
+}
+
+
+def _extract_location(title, url):
+    """Mejor esfuerzo para sacar el barrio cuando el sitio no lo da limpio (ej. Mercado Libre)."""
+    # 1) Del slug de la URL de Mercado Libre: ...-en-<barrio>-_JM
+    m = re.search(r"-en-([a-z0-9\-]+?)-_", url or "", re.IGNORECASE)
+    if m:
+        cand = m.group(1).replace("-", " ").strip()
+        if cand.lower() not in _NOT_A_PLACE and 2 < len(cand) < 40:
+            return cand.title()
+    # 2) Del título: "… en <Barrio>" al final (2-3 palabras con mayúscula inicial)
+    if title:
+        m = re.search(
+            r"\ben\s+((?:la |el |los |las )?[A-ZÁÉÍÓÚÑ][\wáéíóúñ.]+(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ.]+){0,2})\s*$",
+            title.strip(),
+        )
+        if m:
+            cand = m.group(1).strip()
+            if cand.lower() not in _NOT_A_PLACE:
+                return cand
+    return None
+
+
 def _extract_bedrooms(text):
     m = re.search(r"(\d+)\s*(?:dormitorio|dorm\.?|habitaci[oó]n|cuarto)", text, re.IGNORECASE)
     return m.group(1) if m else None
@@ -427,6 +455,8 @@ def _parse(html_text, url):
     result["expenses"] = _extract_expenses(blob)
     result["ptype"] = _extract_ptype(" ".join(filter(None, [result["title"], result["description"]])))
     result["location"] = _meta(soup, "og:locality", "og:region", "geo.placename")
+    if not result["location"]:
+        result["location"] = _extract_location(result["title"], url)
 
     if result["title"]:
         result["title"] = _short_title(html.unescape(result["title"]))

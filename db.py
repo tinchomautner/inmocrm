@@ -92,6 +92,7 @@ def init_db():
             address TEXT,
             ptype TEXT,
             gancho TEXT,
+            title_custom INTEGER DEFAULT 0,
             created_at TEXT NOT NULL
         )
         """,
@@ -108,6 +109,7 @@ def init_db():
     _ensure_column(conn, "properties", "address", "TEXT")
     _ensure_column(conn, "properties", "ptype", "TEXT")
     _ensure_column(conn, "properties", "gancho", "TEXT")
+    _ensure_column(conn, "properties", "title_custom", "INTEGER")
     _ensure_column(conn, "clients", "finished_at", "TEXT")
     conn.commit()
     conn.close()

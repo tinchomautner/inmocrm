@@ -262,11 +262,11 @@ def add_property(client_id):
         try:
             conn.execute(
                 """INSERT INTO properties
-                   (client_id, url, title, ptype, price, image, bedrooms, area, location, address, description, expenses, lat, lng, position, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (client_id, url, title, ptype, price, image, bedrooms, area, location, address, description, expenses, lat, lng, title_custom, position, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (client_id, u, title_final, data.get("ptype"), data.get("price"), data.get("image"), data.get("bedrooms"),
                  data.get("area"), data.get("location"), data.get("address"), data.get("description"), data.get("expenses"),
-                 data.get("lat"), data.get("lng"), pos, now_str()),
+                 data.get("lat"), data.get("lng"), 0, pos, now_str()),
             )
             conn.commit()  # commit por URL para que las guardadas persistan
         except Exception as e:
@@ -292,19 +292,24 @@ def edit_property(prop_id):
     f_location = request.form.get("location")
     f_address = request.form.get("address")
     f_gancho = request.form.get("gancho")
-    # Título automático: si NO cambiaste el título a mano, lo re-armamos con las piezas
-    # (así el gancho y demás entran solos). Si lo reescribiste, se respeta tu versión.
-    if f_title == (p["title"] or "").strip() and (f_location or "").strip():
-        f_title = compose_title(f_location, f_ptype, f_bedrooms, f_gancho, f_address)
+    # Título automático: si NO tocaste el título a mano, lo re-armamos con las piezas
+    # (así el gancho y demás entran solos) y sigue siendo "auto". Si lo reescribiste,
+    # se respeta tu versión y se marca como personalizado (title_custom=1).
+    if f_title == (p["title"] or "").strip():
+        title_custom = 0
+        if (f_location or "").strip():
+            f_title = compose_title(f_location, f_ptype, f_bedrooms, f_gancho, f_address)
+    else:
+        title_custom = 1
 
     conn.execute(
         """UPDATE properties SET title=?, ptype=?, gancho=?, price=?, image=?, bedrooms=?, area=?, location=?, address=?, description=?, expenses=?,
-               map_url=?, lat=?, lng=?
+               map_url=?, lat=?, lng=?, title_custom=?
            WHERE id=?""",
         (f_title, f_ptype, (f_gancho or None), request.form.get("price"), request.form.get("image"),
          f_bedrooms, request.form.get("area"), f_location,
          f_address, request.form.get("description"), request.form.get("expenses"),
-         map_url or None, lat, lng, prop_id),
+         map_url or None, lat, lng, title_custom, prop_id),
     )
     conn.commit()
     cid = p["client_id"]
@@ -334,14 +339,26 @@ def _refresh_property(conn, prop_id):
     if not p:
         return None
     data = scrape(p["url"])
-    fields = ("title", "ptype", "price", "image", "bedrooms", "area", "location", "address", "description", "expenses", "lat", "lng")
+    fields = ("ptype", "price", "image", "bedrooms", "area", "location", "address", "description", "expenses", "lat", "lng")
     updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
-    # Reemplaza títulos/descripciones largos por la versión recortada nueva (más comercial).
-    if data.get("title") and len(p["title"] or "") > 80 and data["title"] != (p["title"] or ""):
-        updates["title"] = data["title"]
-    # Reemplaza títulos basura ya guardados (ej. "Por seguridad…", "Mercado Libre") si ahora sí se leyó bien.
-    if data.get("title") and _is_title_junk_stored(p["title"]) and not _is_title_junk_stored(data["title"]):
-        updates["title"] = data["title"]
+
+    # ---- Título ----
+    # Si NO está personalizado a mano, lo armamos con el formato sistematizado cuando
+    # tenemos la zona; si no hay zona, caemos al título del aviso (recortado).
+    if not p["title_custom"]:
+        loc = data.get("location") or p["location"]
+        if loc:
+            updates["title"] = compose_title(
+                loc, data.get("ptype") or p["ptype"], data.get("bedrooms") or p["bedrooms"],
+                p["gancho"], data.get("address") or p["address"],
+            )
+        elif data.get("title") and (
+            not (p["title"] or "").strip()
+            or _is_title_junk_stored(p["title"])
+            or len(p["title"] or "") > 80
+        ):
+            updates["title"] = data["title"]
+
     if data.get("description") and len(p["description"] or "") > 200 and data["description"] != (p["description"] or ""):
         updates["description"] = data["description"]
     if updates:
