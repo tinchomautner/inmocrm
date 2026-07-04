@@ -270,6 +270,35 @@ def _extract_expenses(text):
     return None
 
 
+# Tipos de propiedad, en orden de prioridad (el más específico primero).
+_PTYPES = [
+    (r"monoambiente", "Monoambiente"),
+    (r"penthouse|penth\b", "Penthouse"),
+    (r"\btr[ií]plex\b", "Tríplex"),
+    (r"\bd[uú]plex\b", "Dúplex"),
+    (r"\bph\b", "PH"),
+    (r"apartamento|\bapto\b|departamento|\bdepto\b", "Apartamento"),
+    (r"\bcasa\b|chalet", "Casa"),
+    (r"terreno|\blote\b", "Terreno"),
+    (r"local comercial|\blocal\b", "Local"),
+    (r"oficina", "Oficina"),
+    (r"chacra", "Chacra"),
+    (r"\bcampo\b", "Campo"),
+    (r"dep[oó]sito|galp[oó]n", "Depósito"),
+    (r"cochera|garaje|\bgarage\b", "Cochera"),
+]
+
+
+def _extract_ptype(text):
+    if not text:
+        return None
+    low = text.lower()
+    for pat, label in _PTYPES:
+        if re.search(pat, low):
+            return label
+    return None
+
+
 def _extract_bedrooms(text):
     m = re.search(r"(\d+)\s*(?:dormitorio|dorm\.?|habitaci[oó]n|cuarto)", text, re.IGNORECASE)
     return m.group(1) if m else None
@@ -335,6 +364,7 @@ def _scrape_golf(url):
     result = {
         "url": url,
         "title": _short_title(html.unescape(name)) if name else None,
+        "ptype": _extract_ptype(name or ""),
         "price": price,
         "image": img,
         "bedrooms": _extract_bedrooms(name or ""),
@@ -354,7 +384,7 @@ def _scrape_golf(url):
 
 def _parse(html_text, url):
     result = {
-        "url": url, "title": None, "price": None, "image": None,
+        "url": url, "title": None, "ptype": None, "price": None, "image": None,
         "bedrooms": None, "area": None, "location": None, "address": None, "description": None,
         "expenses": None, "lat": None, "lng": None, "error": None,
     }
@@ -382,6 +412,7 @@ def _parse(html_text, url):
     result["bedrooms"] = _extract_bedrooms(blob)
     result["area"] = _extract_area(blob)
     result["expenses"] = _extract_expenses(blob)
+    result["ptype"] = _extract_ptype(" ".join(filter(None, [result["title"], result["description"]])))
     result["location"] = _meta(soup, "og:locality", "og:region", "geo.placename")
 
     if result["title"]:
@@ -396,7 +427,7 @@ def _merge(a, b):
     de 'a' si era basura (página de seguridad) y 'b' trae uno bueno."""
     if b.get("title") and _is_junk_title(a.get("title")) and not _is_junk_title(b.get("title")):
         a["title"] = b["title"]
-    for k in ("title", "price", "image", "bedrooms", "area", "location", "address", "description", "expenses"):
+    for k in ("title", "ptype", "price", "image", "bedrooms", "area", "location", "address", "description", "expenses"):
         if not a.get(k) and b.get(k):
             a[k] = b[k]
     return a
@@ -417,7 +448,7 @@ def scrape(url):
         resp = _get(url, BROWSER_UA)
         resp.raise_for_status()
     except Exception as e:
-        return {"url": url, "title": None, "price": None, "image": None, "bedrooms": None,
+        return {"url": url, "title": None, "ptype": None, "price": None, "image": None, "bedrooms": None,
                 "area": None, "location": None, "address": None, "description": None, "expenses": None,
                 "lat": None, "lng": None, "error": f"No se pudo acceder al link: {e}"}
 

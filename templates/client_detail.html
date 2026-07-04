@@ -121,6 +121,8 @@
         <details class="edit">
           <summary>Editar datos</summary>
           <form method="post" action="{{ url_for('edit_property', prop_id=p.id) }}" style="margin-top:10px;">
+            <label>Tipo — se detecta solo del link (Apartamento, Casa, Terreno…)</label>
+            <input name="ptype" value="{{ p.ptype or '' }}" placeholder="ej: Apartamento">
             <label>Título — editalo para que quede más vendedor (es lo que ve el cliente)</label>
             <input name="title" value="{{ p.title or '' }}">
             <div class="grid2">

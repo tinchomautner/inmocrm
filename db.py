@@ -90,6 +90,7 @@ def init_db():
             lat TEXT,
             lng TEXT,
             address TEXT,
+            ptype TEXT,
             created_at TEXT NOT NULL
         )
         """,
@@ -104,6 +105,7 @@ def init_db():
     _ensure_column(conn, "properties", "lat", "TEXT")
     _ensure_column(conn, "properties", "lng", "TEXT")
     _ensure_column(conn, "properties", "address", "TEXT")
+    _ensure_column(conn, "properties", "ptype", "TEXT")
     _ensure_column(conn, "clients", "finished_at", "TEXT")
     conn.commit()
     conn.close()
