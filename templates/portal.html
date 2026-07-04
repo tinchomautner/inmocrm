@@ -21,6 +21,8 @@
   </div>
 </div>
 
+<button id="backToMap" class="back-to-map" style="display:none;">🗺️ Volver al mapa</button>
+
 <section class="wrap" style="padding-bottom:0;">
   <div class="intro">
     <span class="eyebrow">Propiedades seleccionadas para usted</span>
@@ -252,7 +254,21 @@ function goToProperty(p){
       setTimeout(() => card.classList.remove('highlight'), 1800);
     }
   });
+  // Mostrar el botón "Volver al mapa" para que sea fácil regresar.
+  const back = document.getElementById('backToMap');
+  if (back) back.style.display = 'inline-flex';
 }
+
+// Botón flotante: volver al mapa
+(function(){
+  const back = document.getElementById('backToMap');
+  if (!back) return;
+  back.addEventListener('click', () => {
+    const sec = document.getElementById('mapSection');
+    if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
+    back.style.display = 'none';
+  });
+})();
 
 // lightbox
 const lb = document.getElementById('lb'), lbimg = document.getElementById('lbimg');

@@ -193,6 +193,17 @@ footer a:hover { color: var(--green); }
 .done { text-align: center; padding: 60px 20px; }
 .done .big { font-size: 3rem; }
 
+/* botón flotante volver al mapa */
+.back-to-map {
+  position: fixed; top: 78px; left: 50%; transform: translateX(-50%);
+  z-index: 45; background: var(--ink); color: #fff; border: none;
+  padding: 10px 20px; border-radius: 30px; font-family: 'Inter', sans-serif;
+  font-size: 13.5px; font-weight: 500; cursor: pointer; align-items: center; gap: 6px;
+  box-shadow: 0 8px 24px -6px rgba(0,0,0,.4); animation: badgeIn .25s ease;
+}
+.back-to-map:hover { background: var(--green-deep); }
+@media (max-width: 760px) { .back-to-map { top: 66px; font-size: 12.5px; padding: 9px 16px; } }
+
 /* mapa del portal */
 .map-section { margin-bottom: 24px; }
 .map-head { margin-bottom: 12px; }
