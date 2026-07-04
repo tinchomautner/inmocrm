@@ -115,6 +115,23 @@ def coords_from_maps(url):
     return (None, None)
 
 
+def compose_title(location, ptype, bedrooms, gancho, address):
+    """Arma el título comercial sistematizado (formato fluido):
+       ZONA: Tipo N dormitorios [con gancho] — Edificio/Dirección"""
+    core = (ptype or "Propiedad").strip()
+    b = (str(bedrooms).strip() if bedrooms else "")
+    if b and b.isdigit():
+        core += f" {b} dormitorio" + ("s" if b != "1" else "")
+    if gancho and gancho.strip():
+        core += f" con {gancho.strip()}"
+    loc = (location or "").strip()
+    title = (f"{loc.upper()}: " if loc else "") + core
+    addr = (address or "").strip()
+    if addr:
+        title += f" — {addr}"
+    return title
+
+
 def slugify(text):
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     text = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
@@ -235,12 +252,19 @@ def add_property(client_id):
             print(f"[add_property] scrape {u} fallo: {e}")
             data = {"title": None, "price": None, "image": None, "bedrooms": None,
                     "area": None, "location": None, "description": None, "expenses": None}
+        # Título sistematizado automático: si tenemos la zona, lo armamos con el formato estándar;
+        # si no, dejamos el título extraído del aviso.
+        if data.get("location"):
+            title_final = compose_title(data.get("location"), data.get("ptype"),
+                                        data.get("bedrooms"), None, data.get("address"))
+        else:
+            title_final = data.get("title")
         try:
             conn.execute(
                 """INSERT INTO properties
                    (client_id, url, title, ptype, price, image, bedrooms, area, location, address, description, expenses, lat, lng, position, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (client_id, u, data.get("title"), data.get("ptype"), data.get("price"), data.get("image"), data.get("bedrooms"),
+                (client_id, u, title_final, data.get("ptype"), data.get("price"), data.get("image"), data.get("bedrooms"),
                  data.get("area"), data.get("location"), data.get("address"), data.get("description"), data.get("expenses"),
                  data.get("lat"), data.get("lng"), pos, now_str()),
             )
@@ -255,19 +279,31 @@ def add_property(client_id):
 @login_required
 def edit_property(prop_id):
     conn = get_db()
-    p = conn.execute("SELECT client_id FROM properties WHERE id = ?", (prop_id,)).fetchone()
+    p = conn.execute("SELECT client_id, title FROM properties WHERE id = ?", (prop_id,)).fetchone()
     if not p:
         conn.close()
         abort(404)
     map_url = (request.form.get("map_url") or "").strip()
     lat, lng = coords_from_maps(map_url) if map_url else (None, None)
+
+    f_title = (request.form.get("title") or "").strip()
+    f_ptype = request.form.get("ptype")
+    f_bedrooms = request.form.get("bedrooms")
+    f_location = request.form.get("location")
+    f_address = request.form.get("address")
+    f_gancho = request.form.get("gancho")
+    # Título automático: si NO cambiaste el título a mano, lo re-armamos con las piezas
+    # (así el gancho y demás entran solos). Si lo reescribiste, se respeta tu versión.
+    if f_title == (p["title"] or "").strip() and (f_location or "").strip():
+        f_title = compose_title(f_location, f_ptype, f_bedrooms, f_gancho, f_address)
+
     conn.execute(
-        """UPDATE properties SET title=?, ptype=?, price=?, image=?, bedrooms=?, area=?, location=?, address=?, description=?, expenses=?,
+        """UPDATE properties SET title=?, ptype=?, gancho=?, price=?, image=?, bedrooms=?, area=?, location=?, address=?, description=?, expenses=?,
                map_url=?, lat=?, lng=?
            WHERE id=?""",
-        (request.form.get("title"), request.form.get("ptype"), request.form.get("price"), request.form.get("image"),
-         request.form.get("bedrooms"), request.form.get("area"), request.form.get("location"),
-         request.form.get("address"), request.form.get("description"), request.form.get("expenses"),
+        (f_title, f_ptype, (f_gancho or None), request.form.get("price"), request.form.get("image"),
+         f_bedrooms, request.form.get("area"), f_location,
+         f_address, request.form.get("description"), request.form.get("expenses"),
          map_url or None, lat, lng, prop_id),
     )
     conn.commit()
