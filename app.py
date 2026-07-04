@@ -11,7 +11,7 @@ from flask import (
     Flask, render_template, request, redirect, url_for, jsonify, abort, session, Response
 )
 from db import get_db, init_db, now_str, IS_PG
-from scraper import scrape, _is_junk_title
+from scraper import scrape, _is_junk_title, _extract_ptype
 
 
 def _is_title_junk_stored(title):
@@ -201,7 +201,14 @@ def client_detail(client_id):
         "pendiente": sum(1 for p in props if p["status"] == "pendiente"),
         "visitadas": sum(1 for p in props if p["visited_at"]),
     }
-    return render_template("client_detail.html", client=client, props=props, stats=stats)
+    # Tipo "sugerido": si la propiedad no lo tiene guardado, lo detectamos al vuelo
+    # desde el título/descripción ya guardados (sin re-scrapear).
+    ptype_guess = {
+        p["id"]: (p["ptype"] or _extract_ptype(" ".join(filter(None, [p["title"], p["description"]]))) or "")
+        for p in props
+    }
+    return render_template("client_detail.html", client=client, props=props, stats=stats,
+                           ptype_guess=ptype_guess)
 
 
 @app.route("/admin/cliente/<int:client_id>/propiedades", methods=["POST"])
