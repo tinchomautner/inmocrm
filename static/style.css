@@ -142,7 +142,8 @@ details.edit summary { cursor: pointer; color: var(--green-deep); font-size: 12p
 .gal .badge-price { position: absolute; top: 14px; left: 14px; background: var(--green); color: #fff; font-size: 13px; letter-spacing: .04em; padding: 7px 14px; border-radius: 30px; font-weight: 500; }
 
 .info { padding: 28px 30px; display: flex; flex-direction: column; }
-.info .loc { font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--green); font-weight: 500; }
+.info .loc { font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: var(--green-deep); font-weight: 700; margin-bottom: 2px; }
+.info .address { font-size: 13px; color: var(--stone); margin: 2px 0 10px; }
 .info h3 { font-size: 27px; margin: 6px 0 8px; }
 .info .price { font-family: 'Newsreader', serif; font-size: 28px; font-weight: 600; }
 .info .expenses { font-size: 13.5px; color: var(--stone); margin-top: 3px; }
@@ -215,6 +216,12 @@ footer a:hover { color: var(--green); }
 .moved-msg { position: absolute; top: 12px; right: 12px; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 20px; z-index: 2; animation: badgeIn .25s ease; }
 .pcard { position: relative; transition: opacity .3s ease, transform .3s ease; }
 .pcard.fading-out { opacity: 0; transform: scale(.95); pointer-events: none; }
+.pcard.highlight { animation: cardGlow 1.8s ease; }
+@keyframes cardGlow {
+  0% { box-shadow: 0 0 0 0 rgba(57,178,74,.55); }
+  30% { box-shadow: 0 0 0 5px rgba(57,178,74,.35); border-color: var(--green); }
+  100% { box-shadow: var(--shadow); }
+}
 @keyframes badgeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* pantalla 'terminado' del portal */

@@ -89,6 +89,7 @@ def init_db():
             map_url TEXT,
             lat TEXT,
             lng TEXT,
+            address TEXT,
             created_at TEXT NOT NULL
         )
         """,
@@ -102,6 +103,7 @@ def init_db():
     _ensure_column(conn, "properties", "map_url", "TEXT")
     _ensure_column(conn, "properties", "lat", "TEXT")
     _ensure_column(conn, "properties", "lng", "TEXT")
+    _ensure_column(conn, "properties", "address", "TEXT")
     _ensure_column(conn, "clients", "finished_at", "TEXT")
     conn.commit()
     conn.close()

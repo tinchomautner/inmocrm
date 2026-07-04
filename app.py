@@ -231,10 +231,10 @@ def add_property(client_id):
         try:
             conn.execute(
                 """INSERT INTO properties
-                   (client_id, url, title, price, image, bedrooms, area, location, description, expenses, lat, lng, position, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (client_id, url, title, price, image, bedrooms, area, location, address, description, expenses, lat, lng, position, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (client_id, u, data.get("title"), data.get("price"), data.get("image"), data.get("bedrooms"),
-                 data.get("area"), data.get("location"), data.get("description"), data.get("expenses"),
+                 data.get("area"), data.get("location"), data.get("address"), data.get("description"), data.get("expenses"),
                  data.get("lat"), data.get("lng"), pos, now_str()),
             )
             conn.commit()  # commit por URL para que las guardadas persistan
@@ -255,12 +255,12 @@ def edit_property(prop_id):
     map_url = (request.form.get("map_url") or "").strip()
     lat, lng = coords_from_maps(map_url) if map_url else (None, None)
     conn.execute(
-        """UPDATE properties SET title=?, price=?, image=?, bedrooms=?, area=?, location=?, description=?, expenses=?,
+        """UPDATE properties SET title=?, price=?, image=?, bedrooms=?, area=?, location=?, address=?, description=?, expenses=?,
                map_url=?, lat=?, lng=?
            WHERE id=?""",
         (request.form.get("title"), request.form.get("price"), request.form.get("image"),
          request.form.get("bedrooms"), request.form.get("area"), request.form.get("location"),
-         request.form.get("description"), request.form.get("expenses"),
+         request.form.get("address"), request.form.get("description"), request.form.get("expenses"),
          map_url or None, lat, lng, prop_id),
     )
     conn.commit()
@@ -291,7 +291,7 @@ def _refresh_property(conn, prop_id):
     if not p:
         return None
     data = scrape(p["url"])
-    fields = ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses", "lat", "lng")
+    fields = ("title", "price", "image", "bedrooms", "area", "location", "address", "description", "expenses", "lat", "lng")
     updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
     # Reemplaza títulos/descripciones largos por la versión recortada nueva (más comercial).
     if data.get("title") and len(p["title"] or "") > 80 and data["title"] != (p["title"] or ""):
@@ -386,7 +386,7 @@ def portal(slug):
     props_json = json.dumps([
         {"id": p["id"], "url": p["url"], "title": p["title"], "price": p["price"],
          "image": p["image"], "bedrooms": p["bedrooms"], "area": p["area"],
-         "location": p["location"], "description": p["description"], "expenses": p["expenses"],
+         "location": p["location"], "address": p["address"], "description": p["description"], "expenses": p["expenses"],
          "lat": p["lat"], "lng": p["lng"],
          "status": p["status"], "comment": p["comment"] or ""}
         for p in props

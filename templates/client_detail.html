@@ -127,7 +127,8 @@
               <div><label>Gastos comunes</label><input name="expenses" value="{{ p.expenses or '' }}" placeholder="ej: $ 8.500"></div>
               <div><label>Dormitorios</label><input name="bedrooms" value="{{ p.bedrooms or '' }}"></div>
               <div><label>Superficie</label><input name="area" value="{{ p.area or '' }}"></div>
-              <div><label>Ubicación</label><input name="location" value="{{ p.location or '' }}"></div>
+              <div><label>Ubicación (barrio)</label><input name="location" value="{{ p.location or '' }}" placeholder="ej: Pocitos"></div>
+              <div><label>Dirección exacta</label><input name="address" value="{{ p.address or '' }}" placeholder="ej: Av. Brasil 2536"></div>
             </div>
             <label>📍 Ubicación en el mapa — pegá el link de Google Maps de la propiedad
               {% if p.lat %}<span class="muted" style="text-transform:none;color:var(--green-deep)"> · ✓ pin fijado</span>{% endif %}

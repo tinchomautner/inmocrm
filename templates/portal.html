@@ -113,7 +113,6 @@ function render(p){
   const specs = [];
   if (p.bedrooms) specs.push(p.bedrooms + ' dorm');
   if (p.area) specs.push(p.area);
-  if (p.location) specs.push(p.location);
   const gal = p.image
     ? `<img class="main" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onclick="openLB('${esc(p.image)}')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerText:'Sin foto disponible'}))">`
     : `<div class="ph">Sin foto disponible</div>`;
@@ -131,6 +130,7 @@ function render(p){
       ${p.price ? `<div class="price">${esc(p.price)}</div>` : ''}
       ${p.expenses ? `<div class="expenses">${p.expenses==='Sin gastos comunes' ? '✓ Sin gastos comunes' : 'Gastos comunes: '+esc(p.expenses)}</div>` : ''}
       ${specs.length ? `<div class="specs">${specs.map(s=>`<span>${esc(s)}</span>`).join('')}</div>` : ''}
+      ${p.address ? `<div class="address">📍 ${esc(p.address)}</div>` : ''}
       ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
       <a class="ficha" href="${esc(p.url)}" target="_blank">Ver ficha completa &#8599;</a>
       <div class="react">
@@ -238,6 +238,22 @@ document.querySelectorAll('.ptab').forEach(t =>
   t.addEventListener('click', () => switchTab(t.dataset.tab))
 );
 
+// Ir a la ficha de una propiedad (al tocar su punto en el mapa)
+function goToProperty(p){
+  const tab = (p.status === 'interesa' || p.status === 'no_interesa') ? p.status : 'pendiente';
+  currentTab = tab;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+  renderTab();
+  requestAnimationFrame(() => {
+    const card = document.getElementById('card-' + p.id);
+    if (card) {
+      card.scrollIntoView({behavior:'smooth', block:'center'});
+      card.classList.add('highlight');
+      setTimeout(() => card.classList.remove('highlight'), 1800);
+    }
+  });
+}
+
 // lightbox
 const lb = document.getElementById('lb'), lbimg = document.getElementById('lbimg');
 function openLB(src){ lbimg.src = src; lb.classList.add('open'); }
@@ -324,7 +340,11 @@ if (PROPS.length){ updateStats(); renderTab(); }
       fillColor: colorFor(p.status), fillOpacity: 1
     }).addTo(map);
     const price = p.price ? `<b>${p.price}</b><br>` : '';
-    m.bindPopup(`${price}${p.title || 'Propiedad'}${p.location ? '<br><span style="color:#6c756e">'+p.location+'</span>' : ''}`);
+    const popup = `${price}${p.title || 'Propiedad'}${p.location ? '<br><span style="color:#6c756e">'+p.location+'</span>' : ''}<br><span style="color:#2e9c3e;font-size:12px">Tocá para verla ↓</span>`;
+    m.bindPopup(popup);
+    // Hover: muestra el dato. Click: lleva a la ficha de la propiedad.
+    m.on('mouseover', () => m.openPopup());
+    m.on('click', () => goToProperty(p));
     markers.push([lat, lng]);
   });
 

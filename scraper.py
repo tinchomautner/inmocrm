@@ -340,6 +340,7 @@ def _scrape_golf(url):
         "bedrooms": _extract_bedrooms(name or ""),
         "area": area,
         "location": loc,
+        "address": (pd.get("address") or "").strip() or None,
         "description": _short_desc(html.unescape((pd.get("description") or "").strip())) or None,
         "expenses": exp,
         "lat": str(pd["geo_lat"]) if pd.get("geo_lat") else None,
@@ -354,7 +355,7 @@ def _scrape_golf(url):
 def _parse(html_text, url):
     result = {
         "url": url, "title": None, "price": None, "image": None,
-        "bedrooms": None, "area": None, "location": None, "description": None,
+        "bedrooms": None, "area": None, "location": None, "address": None, "description": None,
         "expenses": None, "lat": None, "lng": None, "error": None,
     }
     soup = BeautifulSoup(html_text, "lxml")
@@ -395,7 +396,7 @@ def _merge(a, b):
     de 'a' si era basura (página de seguridad) y 'b' trae uno bueno."""
     if b.get("title") and _is_junk_title(a.get("title")) and not _is_junk_title(b.get("title")):
         a["title"] = b["title"]
-    for k in ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses"):
+    for k in ("title", "price", "image", "bedrooms", "area", "location", "address", "description", "expenses"):
         if not a.get(k) and b.get(k):
             a[k] = b[k]
     return a
@@ -417,7 +418,7 @@ def scrape(url):
         resp.raise_for_status()
     except Exception as e:
         return {"url": url, "title": None, "price": None, "image": None, "bedrooms": None,
-                "area": None, "location": None, "description": None, "expenses": None,
+                "area": None, "location": None, "address": None, "description": None, "expenses": None,
                 "lat": None, "lng": None, "error": f"No se pudo acceder al link: {e}"}
 
     result = _parse(resp.text, url)
