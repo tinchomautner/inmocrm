@@ -157,9 +157,12 @@ _JUNK_TITLE_PHRASES = (
 
 # Títulos genéricos (nombre del sitio) que aparecen cuando no se pudo leer el aviso real.
 _GENERIC_TITLES = {
-    "mercado libre", "mercadolibre", "golf inmobiliaria", "infocasas",
-    "casas y +", "casas y mas", "inicio", "home",
+    "golf inmobiliaria", "infocasas", "casas y +", "casas y mas", "inicio", "home",
 }
+
+# Fragmentos que un aviso REAL nunca contiene: si aparecen, el título es basura
+# (páginas genéricas/seguridad de esos sitios, en cualquiera de sus variantes).
+_JUNK_SUBSTRINGS = ("mercado libre", "mercadolibre")
 
 
 def _is_junk_title(t, site_name=None):
@@ -170,6 +173,8 @@ def _is_junk_title(t, site_name=None):
         return True
     low = s.lower()
     if low in _GENERIC_TITLES:
+        return True
+    if any(sub in low for sub in _JUNK_SUBSTRINGS):
         return True
     if any(ph in low for ph in _JUNK_TITLE_PHRASES):
         return True
