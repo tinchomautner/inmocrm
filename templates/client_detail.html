@@ -93,13 +93,14 @@
       {% if p.image %}<img class="thumb" src="{{ p.image }}" alt="" referrerpolicy="no-referrer">
       {% else %}<div class="thumb"></div>{% endif %}
       <div>
+        {% if p.location %}<div class="prop-loc">{{ p.location }}</div>{% endif %}
         <div class="ttl">{{ p.title or 'Sin título' }}</div>
         <div class="meta">
           {% if p.price %}{{ p.price }} · {% endif %}
           {% if p.bedrooms %}{{ p.bedrooms }} dorm · {% endif %}
-          {% if p.area %}{{ p.area }} · {% endif %}
-          {% if p.location %}{{ p.location }}{% endif %}
+          {% if p.area %}{{ p.area }}{% endif %}
           {% if p.expenses %}<br><span class="muted">G.C.: {{ p.expenses }}</span>{% endif %}
+          {% if p.address %}<br><span class="muted">📍 {{ p.address }}</span>{% endif %}
         </div>
         <div class="meta"><a href="{{ p.url }}" target="_blank" style="color:var(--green-deep)">Ver aviso original ↗</a></div>
         {% if p.comment %}<div class="comment">💬 "{{ p.comment }}"</div>{% endif %}
