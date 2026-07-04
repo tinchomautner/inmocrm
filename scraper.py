@@ -8,9 +8,17 @@ BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
-# Crawler social: algunos sitios (ej. Mercado Libre) sólo sirven la página completa
-# (con precio) a los bots de previsualización tipo WhatsApp/Facebook.
+# Crawlers sociales: algunos sitios (ej. Mercado Libre) sólo sirven la página completa
+# (con precio) a los bots de previsualización. ML bloquea intermitentemente, así que
+# probamos con varios hasta que uno traiga los datos.
 SOCIAL_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+BOT_UAS = [
+    SOCIAL_UA,
+    "WhatsApp/2.23.20.0 A",
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Twitterbot/1.0",
+    "TelegramBot (like TwitterBot)",
+]
 
 
 def _get(url, ua):
@@ -459,10 +467,16 @@ def scrape(url):
 
     result = _parse(resp.text, url)
 
-    # Reintento con el crawler social si el navegador no trajo lo esencial.
-    if (not result["price"]) or (not result["image"]) or _is_junk_title(result.get("title")):
+    # Reintento con varios crawlers si el navegador no trajo lo esencial.
+    # ML bloquea a veces incluso a los bots, así que probamos con distintos hasta lograrlo.
+    def _needs_retry(r):
+        return (not r["price"]) or (not r["image"]) or _is_junk_title(r.get("title"))
+
+    for ua in BOT_UAS:
+        if not _needs_retry(result):
+            break
         try:
-            resp2 = _get(url, SOCIAL_UA)
+            resp2 = _get(url, ua)
             resp2.raise_for_status()
             result = _merge(result, _parse(resp2.text, url))
         except Exception:
