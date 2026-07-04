@@ -28,10 +28,10 @@
   </div>
 
   {% if props %}
-  <div class="stats">
-    <div class="stat"><span class="dot green"></span><div><div class="n" id="cInteresa">0</div><div class="l">Me interesa</div></div></div>
-    <div class="stat"><span class="dot no"></span><div><div class="n" id="cNo">0</div><div class="l">Descartadas</div></div></div>
-    <div class="stat"><span class="dot pend"></span><div><div class="n" id="cPend">0</div><div class="l">Pendientes</div></div></div>
+  <div class="portal-tabs" id="portalTabs">
+    <button class="ptab on" data-tab="pendiente">🆕 Nuevas <span class="tab-count" id="ct_pendiente">0</span></button>
+    <button class="ptab" data-tab="interesa">🟢 Me interesan <span class="tab-count" id="ct_interesa">0</span></button>
+    <button class="ptab" data-tab="no_interesa">⚪ Descartadas <span class="tab-count" id="ct_no_interesa">0</span></button>
   </div>
 
   <div class="cards" id="cards"></div>
@@ -145,16 +145,37 @@ function saveProp(p, flash){
   }).then(()=>{ if(flash){ const s=document.getElementById('saved-'+p.id); if(s){s.classList.add('show'); clearTimeout(s._t); s._t=setTimeout(()=>s.classList.remove('show'),1500);} } });
 }
 
+let currentTab = 'pendiente';
+
+const TAB_LABELS = { pendiente: 'Nuevas', interesa: 'Me interesan', no_interesa: 'Descartadas' };
+
 cards.addEventListener('click', e=>{
   const b = e.target.closest('.rbtn'); if(!b) return;
   const id = +b.parentElement.dataset.id, r = b.dataset.r;
   const p = byId(id);
+  const prevStatus = p.status;
   p.status = (p.status === r) ? 'pendiente' : r;          // toggle off
   b.parentElement.querySelectorAll('.rbtn').forEach(x=>x.classList.toggle('on', x.dataset.r===p.status));
   const card = document.getElementById('card-'+id);
   card.className = 'pcard' + (p.status!=='pendiente' ? ' r-'+p.status : '');
   saveProp(p, true);
   updateStats();
+  // Si cambió de tab, animar salida y re-render
+  if (p.status !== currentTab && prevStatus === currentTab) {
+    const target = TAB_LABELS[p.status];
+    // Mostrar mini badge "→ Movida a X"
+    let msg = card.querySelector('.moved-msg');
+    if (!msg) {
+      msg = document.createElement('div');
+      msg.className = 'moved-msg';
+      card.appendChild(msg);
+    }
+    msg.textContent = `→ Movida a "${target}"`;
+    setTimeout(()=>{
+      card.classList.add('fading-out');
+      setTimeout(renderTab, 350);
+    }, 700);
+  }
 });
 
 let timers = {};
@@ -169,13 +190,43 @@ cards.addEventListener('input', e=>{
 function updateStats(){
   let i=0,n=0,pend=0;
   PROPS.forEach(p=>{ if(p.status==='interesa')i++; else if(p.status==='no_interesa')n++; else pend++; });
-  document.getElementById('cInteresa').textContent = i;
-  document.getElementById('cNo').textContent = n;
-  document.getElementById('cPend').textContent = pend;
+  document.getElementById('ct_interesa').textContent = i;
+  document.getElementById('ct_no_interesa').textContent = n;
+  document.getElementById('ct_pendiente').textContent = pend;
   const done = PROPS.length - pend;
   document.getElementById('progTxt').textContent = `${done} de ${PROPS.length} respondidas`;
   document.getElementById('pbar').style.width = (PROPS.length ? Math.round(done/PROPS.length*100) : 0) + '%';
 }
+
+function renderTab(){
+  cards.innerHTML = '';
+  const filtered = PROPS.filter(p => p.status === currentTab);
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-empty';
+    const EMPTY_MSG = {
+      pendiente:   {em:'🎉', t:'¡Listo! Ya viste todas las propiedades nuevas.', s:'Podés ver las que marcaste en las otras pestañas.'},
+      interesa:    {em:'🟢', t:'Todavía no marcaste ninguna como "Me interesa".', s:''},
+      no_interesa: {em:'⚪', t:'Todavía no descartaste ninguna.', s:''},
+    };
+    const l = EMPTY_MSG[currentTab] || {em:'—', t:'', s:''};
+    empty.innerHTML = `<div class="em">${l.em}</div><div class="t">${l.t}</div>${l.s ? `<div class="s">${l.s}</div>` : ''}`;
+    cards.appendChild(empty);
+    return;
+  }
+  filtered.forEach(render);
+}
+
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+  renderTab();
+  window.scrollTo({top: document.getElementById('portalTabs').offsetTop - 20, behavior:'smooth'});
+}
+
+document.querySelectorAll('.ptab').forEach(t =>
+  t.addEventListener('click', () => switchTab(t.dataset.tab))
+);
 
 // lightbox
 const lb = document.getElementById('lb'), lbimg = document.getElementById('lbimg');
@@ -235,7 +286,7 @@ if (reviewBtn) reviewBtn.addEventListener('click', ()=>{
   window.scrollTo({top:0, behavior:'smooth'});
 });
 
-if (PROPS.length){ PROPS.forEach(render); updateStats(); }
+if (PROPS.length){ updateStats(); renderTab(); }
 </script>
 </body>
 </html>

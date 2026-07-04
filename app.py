@@ -185,15 +185,25 @@ def add_property(client_id):
     pos = maxpos
     for u in urls:
         pos += 1
-        data = scrape(u)
-        conn.execute(
-            """INSERT INTO properties
-               (client_id, url, title, price, image, bedrooms, area, location, description, expenses, position, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (client_id, u, data["title"], data["price"], data["image"], data["bedrooms"],
-             data["area"], data["location"], data["description"], data.get("expenses"), pos, now_str()),
-        )
-    conn.commit()
+        # Scrape con guardado inmediato por cada URL: si el scraping de alguna tarda,
+        # las anteriores quedan guardadas (no se pierden por timeout de gunicorn).
+        try:
+            data = scrape(u)
+        except Exception as e:
+            print(f"[add_property] scrape {u} fallo: {e}")
+            data = {"title": None, "price": None, "image": None, "bedrooms": None,
+                    "area": None, "location": None, "description": None, "expenses": None}
+        try:
+            conn.execute(
+                """INSERT INTO properties
+                   (client_id, url, title, price, image, bedrooms, area, location, description, expenses, position, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (client_id, u, data.get("title"), data.get("price"), data.get("image"), data.get("bedrooms"),
+                 data.get("area"), data.get("location"), data.get("description"), data.get("expenses"), pos, now_str()),
+            )
+            conn.commit()  # commit por URL para que las guardadas persistan
+        except Exception as e:
+            print(f"[add_property] insert {u} fallo: {e}")
     conn.close()
     return redirect(url_for("client_detail", client_id=client_id))
 
