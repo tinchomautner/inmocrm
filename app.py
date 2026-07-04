@@ -80,6 +80,36 @@ def logout():
     return redirect(url_for("login"))
 
 
+_MAPS_BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+def coords_from_maps(url):
+    """Extrae (lat, lng) de un link de Google Maps. Expande short links (maps.app.goo.gl).
+    Devuelve (None, None) si no encuentra coordenadas."""
+    if not url or not url.strip():
+        return (None, None)
+    u = url.strip()
+    # Expandir short links siguiendo el redirect
+    if re.search(r"(maps\.app\.goo\.gl|goo\.gl/maps|g\.co/kgs)", u):
+        try:
+            r = _http.get(u, headers={"User-Agent": _MAPS_BROWSER_UA}, timeout=12, allow_redirects=True)
+            u = r.url
+        except Exception:
+            pass
+    # !3d<lat>!4d<lng> es la coordenada exacta del lugar (la más precisa)
+    m = re.search(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", u)
+    if not m:
+        m = re.search(r"[?&](?:q|ll|daddr|destination|center)=(-?\d+\.\d+),\s*(-?\d+\.\d+)", u)
+    if not m:
+        m = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", u)  # centro del mapa (aprox)
+    if m:
+        return (m.group(1), m.group(2))
+    return (None, None)
+
+
 def slugify(text):
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     text = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
@@ -216,12 +246,16 @@ def edit_property(prop_id):
     if not p:
         conn.close()
         abort(404)
+    map_url = (request.form.get("map_url") or "").strip()
+    lat, lng = coords_from_maps(map_url) if map_url else (None, None)
     conn.execute(
-        """UPDATE properties SET title=?, price=?, image=?, bedrooms=?, area=?, location=?, description=?, expenses=?
+        """UPDATE properties SET title=?, price=?, image=?, bedrooms=?, area=?, location=?, description=?, expenses=?,
+               map_url=?, lat=?, lng=?
            WHERE id=?""",
         (request.form.get("title"), request.form.get("price"), request.form.get("image"),
          request.form.get("bedrooms"), request.form.get("area"), request.form.get("location"),
-         request.form.get("description"), request.form.get("expenses"), prop_id),
+         request.form.get("description"), request.form.get("expenses"),
+         map_url or None, lat, lng, prop_id),
     )
     conn.commit()
     cid = p["client_id"]
@@ -344,6 +378,7 @@ def portal(slug):
         {"id": p["id"], "url": p["url"], "title": p["title"], "price": p["price"],
          "image": p["image"], "bedrooms": p["bedrooms"], "area": p["area"],
          "location": p["location"], "description": p["description"], "expenses": p["expenses"],
+         "lat": p["lat"], "lng": p["lng"],
          "status": p["status"], "comment": p["comment"] or ""}
         for p in props
     ])

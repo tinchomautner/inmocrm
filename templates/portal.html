@@ -6,7 +6,8 @@
   <title>Selección de propiedades · {{ client.name }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -28,6 +29,15 @@
   </div>
 
   {% if props %}
+  <div class="map-section" id="mapSection" style="display:none;">
+    <div class="map-head">
+      <span class="eyebrow">Ubicación</span>
+      <h2 style="margin:4px 0 0;">Dónde está cada propiedad</h2>
+    </div>
+    <div id="map"></div>
+    <p class="muted small" style="margin-top:8px;">Tocá un punto para ver la propiedad. 🟢 le interesa · ⚪ descartada · 🔵 sin decidir.</p>
+  </div>
+
   <div class="portal-tabs" id="portalTabs">
     <button class="ptab on" data-tab="pendiente">🆕 Nuevas <span class="tab-count" id="ct_pendiente">0</span></button>
     <button class="ptab" data-tab="interesa">🟢 Me interesan <span class="tab-count" id="ct_interesa">0</span></button>
@@ -287,6 +297,41 @@ if (reviewBtn) reviewBtn.addEventListener('click', ()=>{
 });
 
 if (PROPS.length){ updateStats(); renderTab(); }
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function(){
+  if (typeof PROPS === 'undefined' || !PROPS.length) return;
+  const geo = PROPS.filter(p => p.lat && p.lng);
+  if (!geo.length) return;                       // sin ubicaciones -> no mostrar mapa
+  if (typeof L === 'undefined') return;          // Leaflet no cargó
+  document.getElementById('mapSection').style.display = 'block';
+
+  const colorFor = s => s==='interesa' ? '#2ecc71' : (s==='no_interesa' ? '#9aa39c' : '#3d8bff');
+  const map = L.map('map', {scrollWheelZoom:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  const markers = [];
+  geo.forEach(p => {
+    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    const m = L.circleMarker([lat, lng], {
+      radius: 10, color: '#fff', weight: 2,
+      fillColor: colorFor(p.status), fillOpacity: 1
+    }).addTo(map);
+    const price = p.price ? `<b>${p.price}</b><br>` : '';
+    m.bindPopup(`${price}${p.title || 'Propiedad'}${p.location ? '<br><span style="color:#6c756e">'+p.location+'</span>' : ''}`);
+    markers.push([lat, lng]);
+  });
+
+  if (markers.length === 1) map.setView(markers[0], 15);
+  else map.fitBounds(markers, {padding:[40,40]});
+  // Leaflet a veces necesita recalcular tamaño tras render
+  setTimeout(()=>map.invalidateSize(), 200);
+})();
 </script>
 </body>
 </html>

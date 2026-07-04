@@ -86,6 +86,9 @@ def init_db():
             expenses TEXT,
             visited_at TEXT,
             visit_comment TEXT,
+            map_url TEXT,
+            lat TEXT,
+            lng TEXT,
             created_at TEXT NOT NULL
         )
         """,
@@ -96,6 +99,9 @@ def init_db():
     _ensure_column(conn, "properties", "expenses", "TEXT")
     _ensure_column(conn, "properties", "visited_at", "TEXT")
     _ensure_column(conn, "properties", "visit_comment", "TEXT")
+    _ensure_column(conn, "properties", "map_url", "TEXT")
+    _ensure_column(conn, "properties", "lat", "TEXT")
+    _ensure_column(conn, "properties", "lng", "TEXT")
     _ensure_column(conn, "clients", "finished_at", "TEXT")
     conn.commit()
     conn.close()
