@@ -280,13 +280,82 @@ def _extract_area(text):
     return f"{m.group(1)} m²" if m else None
 
 
+# ---------- sitios con API propia (Tokko / GOLF) ----------
+
+def _int(v):
+    try:
+        return int(float(v))
+    except Exception:
+        return 0
+
+
+def _scrape_golf(url):
+    """inmobiliariagolf.com.uy es una web JS (backend Tokko). Leemos su API interna."""
+    m = re.search(r"[?&]id=(\d+)", url)
+    if not m:
+        return None
+    pid = m.group(1)
+    try:
+        r = requests.post(
+            "https://www.inmobiliariagolf.com.uy/php/detallepropiedad.php",
+            data={"id": pid},
+            headers={"User-Agent": BROWSER_UA, "X-Requested-With": "XMLHttpRequest", "Referer": url},
+            timeout=15,
+        )
+        pd = r.json().get("property_data")
+    except Exception:
+        return None
+    if not pd:
+        return None
+
+    price = None
+    if _int(pd.get("sale_price")) > 0:
+        price = _fmt_price(_int(pd["sale_price"]), pd.get("sale_currency") or "USD")
+    elif _int(pd.get("rent_price")) > 0:
+        price = _fmt_price(_int(pd["rent_price"]), pd.get("rent_currency") or "USD")
+
+    surf = pd.get("total_surface") or pd.get("roofed_surface")
+    area = f"{_int(surf)} m²" if _int(surf) > 0 else None
+
+    exp = None
+    if _int(pd.get("expenses")) > 0:
+        exp = f"$ {_thousands(_int(pd['expenses']))}"
+
+    loc = None
+    if pd.get("location"):
+        parts = [x.strip() for x in str(pd["location"]).split("|") if x.strip()]
+        if parts:
+            loc = parts[-1]
+
+    name = (pd.get("name") or "").strip() or None
+    img = None
+    if pd.get("photos"):
+        img = pd["photos"][0]
+
+    result = {
+        "url": url,
+        "title": _short_title(html.unescape(name)) if name else None,
+        "price": price,
+        "image": img,
+        "bedrooms": _extract_bedrooms(name or ""),
+        "area": area,
+        "location": loc,
+        "description": _short_desc(html.unescape((pd.get("description") or "").strip())) or None,
+        "expenses": exp,
+        "lat": str(pd["geo_lat"]) if pd.get("geo_lat") else None,
+        "lng": str(pd["geo_long"]) if pd.get("geo_long") else None,
+        "error": None,
+    }
+    return result
+
+
 # ---------- principal ----------
 
 def _parse(html_text, url):
     result = {
         "url": url, "title": None, "price": None, "image": None,
         "bedrooms": None, "area": None, "location": None, "description": None,
-        "expenses": None, "error": None,
+        "expenses": None, "lat": None, "lng": None, "error": None,
     }
     soup = BeautifulSoup(html_text, "lxml")
     ld = _from_jsonld(soup)
@@ -337,13 +406,19 @@ def scrape(url):
     Estrategia: navegador normal y, si falta precio/imagen o el título es basura
     (página de seguridad), reintento con UA social — necesario para Mercado Libre,
     que a los bots les muestra la página completa."""
+    # Sitios con API propia (webs 100% JavaScript que no exponen datos en el HTML).
+    if "inmobiliariagolf.com.uy" in url:
+        g = _scrape_golf(url)
+        if g:
+            return g
+
     try:
         resp = _get(url, BROWSER_UA)
         resp.raise_for_status()
     except Exception as e:
         return {"url": url, "title": None, "price": None, "image": None, "bedrooms": None,
                 "area": None, "location": None, "description": None, "expenses": None,
-                "error": f"No se pudo acceder al link: {e}"}
+                "lat": None, "lng": None, "error": f"No se pudo acceder al link: {e}"}
 
     result = _parse(resp.text, url)
 

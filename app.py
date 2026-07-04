@@ -231,10 +231,11 @@ def add_property(client_id):
         try:
             conn.execute(
                 """INSERT INTO properties
-                   (client_id, url, title, price, image, bedrooms, area, location, description, expenses, position, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (client_id, url, title, price, image, bedrooms, area, location, description, expenses, lat, lng, position, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (client_id, u, data.get("title"), data.get("price"), data.get("image"), data.get("bedrooms"),
-                 data.get("area"), data.get("location"), data.get("description"), data.get("expenses"), pos, now_str()),
+                 data.get("area"), data.get("location"), data.get("description"), data.get("expenses"),
+                 data.get("lat"), data.get("lng"), pos, now_str()),
             )
             conn.commit()  # commit por URL para que las guardadas persistan
         except Exception as e:
@@ -290,7 +291,7 @@ def _refresh_property(conn, prop_id):
     if not p:
         return None
     data = scrape(p["url"])
-    fields = ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses")
+    fields = ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses", "lat", "lng")
     updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
     # Reemplaza títulos/descripciones largos por la versión recortada nueva (más comercial).
     if data.get("title") and len(p["title"] or "") > 80 and data["title"] != (p["title"] or ""):
