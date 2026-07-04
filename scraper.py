@@ -148,15 +148,34 @@ def _short_desc(d):
     return _trim(d, 180, [". ", ".\n", "! ", "? ", " · "])
 
 
+# Frases de páginas anti-bot / interstitials (ej. Mercado Libre) que NO son títulos reales.
+_JUNK_TITLE_PHRASES = (
+    "por seguridad", "completá este paso", "completa este paso", "antes de continuar",
+    "verificá que sos", "verifica que eres", "no soy un robot", "are you a robot",
+    "acceso denegado", "access denied", "just a moment", "un momento",
+)
+
+# Títulos genéricos (nombre del sitio) que aparecen cuando no se pudo leer el aviso real.
+_GENERIC_TITLES = {
+    "mercado libre", "mercadolibre", "golf inmobiliaria", "infocasas",
+    "casas y +", "casas y mas", "inicio", "home",
+}
+
+
 def _is_junk_title(t, site_name=None):
     if not t:
         return True
     s = t.strip()
     if len(s) < 5:
         return True
+    low = s.lower()
+    if low in _GENERIC_TITLES:
+        return True
+    if any(ph in low for ph in _JUNK_TITLE_PHRASES):
+        return True
     if re.fullmatch(r"(?:ref\.?\s*:?\s*[,;.\-/]*\s*)+", s, re.IGNORECASE):
         return True
-    if site_name and s.lower() == site_name.strip().lower():
+    if site_name and low == site_name.strip().lower():
         return True
     return False
 
@@ -303,7 +322,10 @@ def _parse(html_text, url):
 
 
 def _merge(a, b):
-    """Completa los campos vacíos de 'a' con los de 'b'."""
+    """Completa los campos vacíos de 'a' con los de 'b'. Además reemplaza el título
+    de 'a' si era basura (página de seguridad) y 'b' trae uno bueno."""
+    if b.get("title") and _is_junk_title(a.get("title")) and not _is_junk_title(b.get("title")):
+        a["title"] = b["title"]
     for k in ("title", "price", "image", "bedrooms", "area", "location", "description", "expenses"):
         if not a.get(k) and b.get(k):
             a[k] = b[k]
@@ -312,8 +334,9 @@ def _merge(a, b):
 
 def scrape(url):
     """Devuelve dict con los datos de la propiedad. Nunca lanza excepción.
-    Estrategia: navegador normal y, si falta el precio, reintento con UA social
-    (necesario para Mercado Libre, que a los bots les muestra la página completa)."""
+    Estrategia: navegador normal y, si falta precio/imagen o el título es basura
+    (página de seguridad), reintento con UA social — necesario para Mercado Libre,
+    que a los bots les muestra la página completa."""
     try:
         resp = _get(url, BROWSER_UA)
         resp.raise_for_status()
@@ -324,13 +347,17 @@ def scrape(url):
 
     result = _parse(resp.text, url)
 
-    # Si no salió el precio, reintento con el crawler social (golazo para Mercado Libre).
-    if not result["price"]:
+    # Reintento con el crawler social si el navegador no trajo lo esencial.
+    if (not result["price"]) or (not result["image"]) or _is_junk_title(result.get("title")):
         try:
             resp2 = _get(url, SOCIAL_UA)
             resp2.raise_for_status()
             result = _merge(result, _parse(resp2.text, url))
         except Exception:
             pass
+
+    # Si el título quedó basura pese a todo, mejor dejarlo vacío que mostrar "Por seguridad…"
+    if _is_junk_title(result.get("title")):
+        result["title"] = None
 
     return result

@@ -35,7 +35,7 @@
       <h2 style="margin:4px 0 0;">Dónde está cada propiedad</h2>
     </div>
     <div id="map"></div>
-    <p class="muted small" style="margin-top:8px;">Tocá un punto para ver la propiedad. 🟢 le interesa · ⚪ descartada · 🔵 sin decidir.</p>
+    <p class="muted small" style="margin-top:8px;">Tocá un punto para ver la propiedad. 🟢 le interesa · 🔵 sin decidir.</p>
   </div>
 
   <div class="portal-tabs" id="portalTabs">
@@ -303,7 +303,8 @@ if (PROPS.length){ updateStats(); renderTab(); }
 <script>
 (function(){
   if (typeof PROPS === 'undefined' || !PROPS.length) return;
-  const geo = PROPS.filter(p => p.lat && p.lng);
+  // En el mapa mostramos solo las nuevas y las que le interesan (no las descartadas).
+  const geo = PROPS.filter(p => p.lat && p.lng && p.status !== 'no_interesa');
   if (!geo.length) return;                       // sin ubicaciones -> no mostrar mapa
   if (typeof L === 'undefined') return;          // Leaflet no cargó
   document.getElementById('mapSection').style.display = 'block';

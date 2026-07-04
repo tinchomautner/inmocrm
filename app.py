@@ -11,7 +11,12 @@ from flask import (
     Flask, render_template, request, redirect, url_for, jsonify, abort, session, Response
 )
 from db import get_db, init_db, now_str, IS_PG
-from scraper import scrape
+from scraper import scrape, _is_junk_title
+
+
+def _is_title_junk_stored(title):
+    """True si el título guardado es basura (página de seguridad, nombre de sitio, etc.)."""
+    return _is_junk_title(title)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-cambiar-en-produccion")
@@ -289,6 +294,9 @@ def _refresh_property(conn, prop_id):
     updates = {f: data.get(f) for f in fields if not (p[f] or "").strip() and data.get(f)}
     # Reemplaza títulos/descripciones largos por la versión recortada nueva (más comercial).
     if data.get("title") and len(p["title"] or "") > 80 and data["title"] != (p["title"] or ""):
+        updates["title"] = data["title"]
+    # Reemplaza títulos basura ya guardados (ej. "Por seguridad…", "Mercado Libre") si ahora sí se leyó bien.
+    if data.get("title") and _is_title_junk_stored(p["title"]) and not _is_title_junk_stored(data["title"]):
         updates["title"] = data["title"]
     if data.get("description") and len(p["description"] or "") > 200 and data["description"] != (p["description"] or ""):
         updates["description"] = data["description"]
